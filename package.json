@@ -1,0 +1,19 @@
+{
+  "name": "benki",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "setup": "pnpm install && pnpm --filter pipeline setup",
+    "dev": "pnpm --parallel --filter site --filter pipeline dev",
+    "dev:site": "pnpm --filter site dev",
+    "dev:pipeline": "pnpm --filter pipeline dev",
+    "schema": "pnpm --filter @benki/content-schema build",
+    "build": "pnpm schema && pnpm --filter site build",
+    "check": "pnpm --filter site check && pnpm schema",
+    "test": "pnpm -r test"
+  }
+}

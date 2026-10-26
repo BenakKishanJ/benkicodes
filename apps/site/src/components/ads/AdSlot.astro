@@ -1,0 +1,15 @@
+---
+import { siteConfig } from '../../site.config';
+interface Props { slot?: string; height?: number }
+const { slot = 'in-article', height = 280 } = Astro.props;
+const cfg = siteConfig.ads;
+const slotId = cfg.slots[slot];
+---
+{cfg.enabled && slotId && (
+  // Fixed min-height reserves space so ads never cause layout shift (CLS)
+  <div class="ad-slot" style={`min-height:${height}px`} aria-label="Advertisement">
+    <ins class="adsbygoogle" style="display:block" data-ad-client={cfg.client} data-ad-slot={slotId}
+         data-ad-format="auto" data-full-width-responsive="true"></ins>
+    <script is:inline>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
+)}

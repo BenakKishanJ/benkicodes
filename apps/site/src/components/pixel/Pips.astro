@@ -1,0 +1,9 @@
+---
+interface Props { level: 'beginner' | 'intermediate' | 'advanced'; label?: boolean }
+const { level, label = true } = Astro.props;
+const n = { beginner: 1, intermediate: 2, advanced: 3 }[level];
+---
+<span class="inline-flex items-center gap-2">
+  <span class="pips" aria-hidden="true">{[1, 2, 3].map((i) => <i class:list={{ on: i <= n }}></i>)}</span>
+  {label && <span>{level}</span>}
+</span>

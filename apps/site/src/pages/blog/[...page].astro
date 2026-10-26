@@ -1,0 +1,42 @@
+---
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHero from '../../components/content/PageHero.astro';
+import PostCard from '../../components/content/PostCard.astro';
+import PixelIcon from '../../components/pixel/PixelIcon.astro';
+import { getPosts } from '../../lib/content';
+
+export const getStaticPaths = (async ({ paginate }) => {
+  const posts = await getPosts();
+  return paginate(posts, { pageSize: 9 });
+}) satisfies GetStaticPaths;
+
+const { page } = Astro.props;
+const all = await getPosts();
+const tags = [...new Set(all.flatMap((p) => p.data.tags))].sort();
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+<BaseLayout title={page.currentPage > 1 ? `Blog, page ${page.currentPage}` : 'Blog'} description="Guides, tooling notes and news for full-stack and AI engineers. Every post lists its sources.">
+  <PageHero title="Blog" word="BLOG" lead="Guides, tooling notes and news. Every post lists its sources and the date a person last reviewed it.">
+    <p class="prompt meta mb-6">ls tags/ <span class="text-fg">({all.length} posts)</span></p>
+    <p class="flex flex-wrap gap-3">{tags.map((t) => <a class="tag" href={`/blog/tags/${t}/`}>{t}</a>)}</p>
+  </PageHero>
+
+  <section class="sec tone-b grid-bg" data-title="posts" style="padding-top:clamp(4rem,9vh,7rem)">
+    <div class="wrap">
+      {page.data.length ? (
+        <div class="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
+          {page.data.map((p, i) => <div data-parallax={i % 3 === 1 ? '0.05' : undefined}><PostCard post={p} /></div>)}
+        </div>
+      ) : <p class="px p-6 text-muted">No posts published yet.</p>}
+
+      {page.lastPage > 1 && (
+        <nav class="mt-20 flex flex-wrap items-center justify-between gap-6" aria-label="Pagination">
+          {page.url.prev ? <a class="btn" href={page.url.prev}><PixelIcon name="arrow-left" size={2} /> newer</a> : <span />}
+          <span class="px-font text-[11px]">{pad(page.currentPage)} / {pad(page.lastPage)}</span>
+          {page.url.next ? <a class="btn" href={page.url.next}>older <PixelIcon name="arrow-right" size={2} /></a> : <span />}
+        </nav>
+      )}
+    </div>
+  </section>
+</BaseLayout>

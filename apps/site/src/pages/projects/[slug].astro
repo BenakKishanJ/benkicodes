@@ -1,0 +1,36 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PixelEdge from '../../components/pixel/PixelEdge.astro';
+import PixelIcon from '../../components/pixel/PixelIcon.astro';
+import { getProjects } from '../../lib/content';
+
+export const getStaticPaths = (async () => {
+  const projects = await getProjects();
+  return projects.map((project) => ({ params: { slug: project.id }, props: { project } }));
+}) satisfies GetStaticPaths;
+
+const { project } = Astro.props;
+const { data } = project;
+const { Content } = await render(project);
+---
+<BaseLayout title={data.title} description={data.summary}>
+  <section class="sec sec-first sec-pad-b tone-a grid-bg" data-title="project">
+    <span class="bgword" style="right:-3%;top:26%" data-parallax-x="0.1" aria-hidden="true">{data.status}</span>
+    <div class="wrap relative z-10">
+      <nav aria-label="Breadcrumb" class="meta mb-10 flex gap-2" data-reveal><a href="/projects/" class="hover:text-accent">projects</a><span>/</span><span class="text-fg">{project.id}</span></nav>
+      <h1 class="t-1" data-reveal>{data.title}</h1>
+      <p class="lead mt-10" data-reveal>{data.summary}</p>
+      <p class="mt-8 flex flex-wrap gap-2" data-reveal>{data.stack.map((s) => <span class="tag tag-plain">{s}</span>)}</p>
+      <p class="mt-12 flex flex-wrap gap-6" data-reveal>
+        {data.repo && <a class="btn" href={data.repo} rel="noopener">source</a>}
+        {data.demo && <a class="btn btn-primary" href={data.demo} rel="noopener">live demo <PixelIcon name="arrow-right" size={2} /></a>}
+      </p>
+    </div>
+    <PixelEdge to="b" seed={41} />
+  </section>
+  <section class="sec tone-b grid-bg" data-title="write-up" style="padding-top:clamp(4rem,9vh,7rem)">
+    <div class="wrap"><div class="prose"><Content /></div></div>
+  </section>
+</BaseLayout>

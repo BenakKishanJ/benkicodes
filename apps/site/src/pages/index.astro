@@ -1,0 +1,202 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import HeroArt from '../components/pixel/HeroArt.astro';
+import PixelEdge from '../components/pixel/PixelEdge.astro';
+import PixelIcon from '../components/pixel/PixelIcon.astro';
+import SectionHeader from '../components/pixel/SectionHeader.astro';
+import TerminalWindow from '../components/pixel/TerminalWindow.astro';
+import PostCard from '../components/content/PostCard.astro';
+import RoadmapCard from '../components/content/RoadmapCard.astro';
+import { siteConfig } from '../site.config';
+import { getPosts, getRoadmaps, getModules, getProjects, roadmapSlug, moduleSlug } from '../lib/content';
+import { formatDate } from '../lib/utils';
+import { hash } from '../lib/art';
+
+const [allPosts, roadmaps, modules, projects] = await Promise.all([getPosts(), getRoadmaps(), getModules(), getProjects()]);
+const featured = allPosts.find((p) => p.data.featured) ?? allPosts[0];
+const more = allPosts.filter((p) => p.id !== featured?.id).slice(0, 3);
+const hours = roadmaps.reduce((n, r) => n + r.data.estimatedHours, 0);
+const topics = [...new Set(allPosts.flatMap((p) => p.data.tags).concat(roadmaps.flatMap((r) => r.data.tags)))];
+const count = (slug: string) => modules.filter((m) => roadmapSlug(m.id) === slug).length;
+const perms = { active: 'drwxr-xr-x', shipped: '-rwxr-xr-x', archived: '-r--r--r--' } as const;
+const recent = [...modules].sort((a, b) => b.data.lastReviewed.valueOf() - a.data.lastReviewed.valueOf()).slice(0, 5);
+const stats = [
+  { n: allPosts.length, l: 'posts' }, { n: roadmaps.length, l: 'roadmaps' },
+  { n: modules.length, l: 'modules' }, { n: hours, l: 'hours of study' },
+];
+const principles = [
+  { icon: 'book', t: 'Sourced', d: 'Every article ends with the documents it was written from, so you can check the claim yourself.' },
+  { icon: 'check', t: 'Reviewed', d: 'AI drafts, a person edits. The date of the last human check sits on every page.' },
+  { icon: 'terminal', t: 'Practised', d: 'Each roadmap module closes with a quiz. Your progress stays in your own browser.' },
+];
+---
+<BaseLayout title="Home" snap="mandatory">
+  <!-- 1 · hero -->
+  <section class="sec sec-full sec-first sec-pad-b tone-a grid-bg" data-title="start">
+    <span class="absolute left-[6%] top-[24%] hidden md:block" data-parallax="0.28" style="color:var(--yellow)" aria-hidden="true"><PixelIcon name="coin" size={4} class="spin" /></span>
+    <span class="absolute right-[5%] top-[16%] hidden md:block" data-parallax="0.18" style="color:var(--pink)" aria-hidden="true"><PixelIcon name="heart" size={4} class="bob" /></span>
+    <span class="absolute bottom-[22%] left-[44%] hidden lg:block" data-parallax="0.35" style="color:var(--green)" aria-hidden="true"><PixelIcon name="sparkle" size={4} class="blink" /></span>
+    <span class="absolute left-[50%] top-[9%] hidden lg:block" data-parallax="0.12" style="color:var(--line)" aria-hidden="true"><PixelIcon name="cloud" size={5} class="bob" /></span>
+
+    <div class="wrap relative z-10 grid items-center gap-14 lg:grid-cols-12">
+      <div class="lg:col-span-7">
+        <div class="meta mb-10 space-y-1" aria-hidden="true">
+          <p class="boot" style="--d:.1s"><span style="color:var(--green)">[ ok ]</span> mounted /roadmaps · {roadmaps.length} roadmaps, {modules.length} modules</p>
+          <p class="boot" style="--d:.45s"><span style="color:var(--green)">[ ok ]</span> indexed /blog · {allPosts.length} posts, every one with sources</p>
+          <p class="boot" style="--d:.8s"><span style="color:var(--green)">[ ok ]</span> theme: <span data-theme-label>wave</span></p>
+        </div>
+        <h1 class="h-hero">
+          <span class="boot block" style="--d:1.0s">Learn.</span>
+          <span class="boot block" style="--d:1.25s">Build.</span>
+          <span class="boot block" style="--d:1.5s">Ship.</span>
+        </h1>
+        <p class="lead boot mt-10" style="--d:1.8s">{siteConfig.tagline} {siteConfig.description}</p>
+        <p class="prompt boot mt-10 text-[13px]" style="--d:2s">
+          <span class="typing" style="--n:19;--d:2.1s">./start --roadmap</span><span class="caret" aria-hidden="true"></span>
+        </p>
+        <div class="boot mt-8 flex flex-wrap gap-6" style="--d:2.4s">
+          <a class="btn btn-primary" href="/roadmaps/">browse roadmaps <PixelIcon name="arrow-right" size={2} /></a>
+          <a class="btn" href="/blog/">read the blog</a>
+        </div>
+      </div>
+      <div class="lg:col-span-5">
+        <div class="px p-3 sm:p-4" data-parallax="0.07" style="--sh:var(--accent2);--o:10px">
+          <HeroArt />
+          <p class="meta mt-3 flex justify-between"><span>fig. 1</span><span data-theme-label>wave</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="marquee mt-16 py-3 text-[12px] text-muted" aria-hidden="true">
+      <div class="marquee-track">
+        {[0, 1].map(() => (
+          <div class="flex shrink-0 items-center gap-8 pr-8">
+            {topics.map((t) => <span class="flex items-center gap-8"><span>{t}</span><PixelIcon name="gem" size={2} /></span>)}
+          </div>
+        ))}
+      </div>
+    </div>
+    <PixelEdge to="b" seed={2} />
+  </section>
+
+  <!-- 2 · principles -->
+  <section class="sec sec-full sec-pad-b tone-b grid-bg" data-title="how it works">
+    <div class="wrap">
+      <SectionHeader title="How this site works" meta="three rules" />
+      <p class="t-2 mt-16 max-w-[26ch] sm:mt-20" data-reveal>Every guide shows its sources and the day a person last checked it.</p>
+      <div class="mt-16 grid gap-10 md:grid-cols-3 sm:mt-24">
+        {principles.map((p) => (
+          <div class="px flex flex-col gap-6 p-7 sm:p-8" data-reveal>
+            <span class="text-accent"><PixelIcon name={p.icon} size={4} /></span>
+            <h3 class="t-3">{p.t}</h3>
+            <p class="text-[13px] leading-relaxed text-muted">{p.d}</p>
+          </div>
+        ))}
+      </div>
+      <dl class="mt-20 grid grid-cols-2 gap-x-6 gap-y-10 border-t-2 border-line pt-10 md:grid-cols-4" data-reveal>
+        {stats.map((s) => (
+          <div>
+            <dd class="px-font text-[1.75rem] sm:text-[2.25rem]" data-count={s.n}>{s.n}</dd>
+            <dt class="meta mt-3">{s.l}</dt>
+          </div>
+        ))}
+      </dl>
+    </div>
+    <PixelEdge to="a" seed={3} />
+  </section>
+
+  <!-- 3 · roadmaps -->
+  <section class="sec sec-full sec-pad-b tone-a grid-bg" data-title="roadmaps">
+    <div class="wrap grid gap-16 lg:grid-cols-12">
+      <div class="lg:col-span-4">
+        <div class="lg:sticky lg:top-32">
+          <h2 class="px-font text-[clamp(1.5rem,3vw,2.5rem)] leading-tight" data-reveal>Roadmaps</h2>
+          <p class="lead mt-8" data-reveal>Step-by-step paths with a quiz at the end of every module. Pass it and the node on your map lights up.</p>
+          <p class="mt-10" data-reveal><a class="btn" href="/roadmaps/">all roadmaps <PixelIcon name="arrow-right" size={2} /></a></p>
+        </div>
+      </div>
+      <div class="space-y-14 lg:col-span-8">
+        {roadmaps.length ? roadmaps.slice(0, 3).map((r, i) => (
+          <div data-parallax={i % 2 ? '0.03' : '-0.02'}><RoadmapCard entry={r} index={i} modules={count(roadmapSlug(r.id))} /></div>
+        )) : <p class="px p-6 text-muted">Roadmaps are coming.</p>}
+      </div>
+    </div>
+    <PixelEdge to="b" seed={4} />
+  </section>
+
+  <!-- 4 · posts -->
+  <section class="sec sec-pad-b tone-b grid-bg" data-title="posts">
+    <div class="wrap">
+      <SectionHeader title="Latest posts" meta={`${allPosts.length} published`} />
+      {featured ? (
+        <div class="mt-16 sm:mt-20">
+          <PostCard post={featured} featured />
+          <div class="mt-14 grid gap-10 md:grid-cols-3">
+            {more.map((p, i) => <div data-parallax={i === 1 ? '0.05' : '0'}><PostCard post={p} /></div>)}
+          </div>
+        </div>
+      ) : <p class="px mt-16 p-6 text-muted">No posts yet. The first one is on its way.</p>}
+      <p class="mt-16" data-reveal><a class="btn" href="/blog/">all posts <PixelIcon name="arrow-right" size={2} /></a></p>
+    </div>
+    <PixelEdge to="a" seed={5} />
+  </section>
+
+  <!-- 5 · under the hood -->
+  <section class="sec sec-full sec-pad-b tone-a grid-bg" data-title="projects">
+    <div class="wrap">
+      <SectionHeader title="Under the hood" meta="projects and recent changes" />
+      <div class="mt-16 grid gap-12 sm:mt-20 lg:grid-cols-2">
+        <div data-reveal>
+          <TerminalWindow title="~/projects — ls -l" bodyClass="p-6 text-[12px] leading-[2.2]">
+            {projects.length ? (
+              <ul>
+                {projects.map((p) => (
+                  <li class="row -mx-3 px-3">
+                    <a href={`/projects/${p.id}/`} class="flex flex-wrap items-baseline gap-x-5">
+                      <span class="muted">{perms[p.data.status]}</span>
+                      <span style={`color:var(${p.data.status === 'active' ? '--green' : p.data.status === 'shipped' ? '--blue' : '--muted'})`}>{p.data.status}</span>
+                      <span class="font-semibold">{p.data.title}</span>
+                      <span class="muted ml-auto hidden sm:inline">{p.data.stack.slice(0, 2).join(' ')}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : <p class="muted">total 0</p>}
+            <p class="prompt mt-4"><a href="/projects/" class="hover:text-accent">cd projects/</a><span class="caret" aria-hidden="true"></span></p>
+          </TerminalWindow>
+        </div>
+        <div data-reveal>
+          <TerminalWindow title="~/roadmaps — git log --oneline" bodyClass="p-6 text-[12px] leading-[2.2]">
+            <ul>
+              {recent.map((m) => (
+                <li class="row -mx-3 px-3">
+                  <a href={`/roadmaps/${roadmapSlug(m.id)}/${moduleSlug(m.id)}/`} class="flex flex-wrap items-baseline gap-x-4">
+                    <span style="color:var(--yellow)">{hash(m.id).toString(16).slice(0, 7)}</span>
+                    <span class="font-semibold">{m.data.title}</span>
+                    <span class="muted ml-auto">{formatDate(m.data.lastReviewed)}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </TerminalWindow>
+        </div>
+      </div>
+    </div>
+    <PixelEdge to="b" seed={6} />
+  </section>
+
+  <!-- 6 · call to action -->
+  <section class="sec sec-pad-b tone-b grid-bg" data-title="start learning">
+    <span class="absolute left-[8%] top-[22%] hidden md:block" data-parallax="0.3" style="color:var(--b-pink)" aria-hidden="true"><PixelIcon name="star" size={4} class="bob" /></span>
+    <span class="absolute right-[10%] bottom-[30%] hidden md:block" data-parallax="0.2" style="color:var(--b-orange)" aria-hidden="true"><PixelIcon name="coin" size={4} class="spin" /></span>
+    <div class="wrap text-center">
+      <h2 class="t-1 mx-auto max-w-[18ch]" data-reveal>Pick a path. Pass the quiz. Ship the thing.</h2>
+      <p class="lead mx-auto mt-10" data-reveal>New posts and roadmap modules land as they are reviewed. Follow along with RSS, or just come back.</p>
+      <p class="mt-12 flex flex-wrap justify-center gap-6" data-reveal>
+        <a class="btn btn-primary" href="/roadmaps/">start a roadmap</a>
+        <a class="btn" href="/rss.xml">subscribe via rss</a>
+      </p>
+    </div>
+    <PixelEdge to="a" seed={8} />
+  </section>
+</BaseLayout>

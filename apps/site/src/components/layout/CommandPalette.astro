@@ -1,0 +1,94 @@
+---
+import { siteConfig } from '../../site.config';
+import { themes } from '../../lib/themes';
+import { getPosts, getRoadmaps, getModules, getProjects, roadmapSlug, moduleSlug } from '../../lib/content';
+
+const [posts, roadmaps, modules, projects] = await Promise.all([getPosts(), getRoadmaps(), getModules(), getProjects()]);
+
+type Item = { group: string; label: string; hint?: string; href?: string; action?: string };
+const items: Item[] = [
+  ...siteConfig.nav.map((n) => ({ group: 'go to', label: n.label, href: n.href })),
+  ...posts.slice(0, 40).map((p) => ({ group: 'posts', label: p.data.title, hint: p.data.tags.join(', '), href: `/blog/${p.id}/` })),
+  ...roadmaps.map((r) => ({ group: 'roadmaps', label: r.data.title, hint: r.data.level, href: `/roadmaps/${roadmapSlug(r.id)}/` })),
+  ...modules.map((m) => ({ group: 'modules', label: m.data.title, hint: roadmapSlug(m.id), href: `/roadmaps/${roadmapSlug(m.id)}/${moduleSlug(m.id)}/` })),
+  ...projects.map((p) => ({ group: 'projects', label: p.data.title, hint: p.data.status, href: `/projects/${p.id}/` })),
+  ...themes.map((t) => ({ group: 'theme', label: `theme: ${t.label}`, hint: t.blurb, action: `theme:${t.id}` })),
+  { group: 'theme', label: 'toggle effects', hint: 'animations, parallax, cursor sparks', action: 'fx' },
+];
+---
+<dialog id="cmdk" class="rofi" aria-label="Command palette">
+  <div class="flex items-center gap-3 border-b-2 border-line p-4">
+    <span class="px-font text-[11px] text-accent">run:</span>
+    <label class="sr-only" for="cmdk-input">Search commands and content</label>
+    <input id="cmdk-input" type="text" autocomplete="off" spellcheck="false" placeholder="type a command or search…" class="w-full bg-transparent text-[13px] outline-none placeholder:text-muted" />
+  </div>
+  <ul id="cmdk-list" role="listbox" class="max-h-[50vh] overflow-y-auto p-2 text-[13px]"></ul>
+  <div class="flex gap-4 border-t-2 border-line px-4 py-2 text-[11px] text-muted">
+    <span><span class="kbd">↑↓</span> move</span><span><span class="kbd">Enter</span> open</span><span><span class="kbd">Esc</span> close</span>
+  </div>
+</dialog>
+<script type="application/json" id="cmdk-data" set:html={JSON.stringify(items)}></script>
+
+<script>
+  import { setTheme, toggleEffects } from '../../scripts/theme';
+  type Item = { group: string; label: string; hint?: string; href?: string; action?: string };
+
+  const dlg = document.getElementById('cmdk') as HTMLDialogElement;
+  const input = document.getElementById('cmdk-input') as HTMLInputElement;
+  const list = document.getElementById('cmdk-list') as HTMLUListElement;
+  const items: Item[] = JSON.parse(document.getElementById('cmdk-data')!.textContent || '[]');
+  let shown: Item[] = [];
+  let sel = 0;
+
+  function score(q: string, it: Item) {
+    const hay = `${it.label} ${it.hint ?? ''} ${it.group}`.toLowerCase();
+    if (!q) return 1;
+    if (hay.includes(q)) return 2 + (it.label.toLowerCase().startsWith(q) ? 2 : 0);
+    let i = 0; for (const c of hay) if (c === q[i]) i++;
+    return i === q.length ? 1 : 0;
+  }
+
+  function render() {
+    const q = input.value.trim().toLowerCase();
+    shown = items.map((it) => ({ it, s: score(q, it) })).filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s).slice(0, 30).map((x) => x.it);
+    sel = Math.min(sel, Math.max(shown.length - 1, 0));
+    list.innerHTML = '';
+    if (!shown.length) { list.innerHTML = '<li class="px-3 py-2 muted">no matches</li>'; return; }
+    shown.forEach((it, i) => {
+      const li = document.createElement('li');
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', String(i === sel));
+      li.className = 'flex cursor-pointer items-baseline gap-3 px-3 py-2';
+      const g = document.createElement('span'); g.className = 'w-20 shrink-0 text-[11px] muted'; g.textContent = it.group;
+      const l = document.createElement('span'); l.className = 'truncate'; l.textContent = it.label;
+      li.append(g, l);
+      if (it.hint) { const h = document.createElement('span'); h.className = 'ml-auto hidden truncate text-[11px] muted sm:inline'; h.textContent = it.hint; li.append(h); }
+      li.addEventListener('click', () => run(it));
+      li.addEventListener('mousemove', () => { if (sel !== i) { sel = i; render(); } });
+      list.append(li);
+    });
+    list.children[sel]?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function run(it: Item) {
+    dlg.close();
+    if (it.href) { window.location.href = it.href; return; }
+    if (it.action === 'fx') toggleEffects();
+    else if (it.action?.startsWith('theme:')) setTheme(it.action.slice(6));
+  }
+
+  function open() { input.value = ''; sel = 0; render(); dlg.showModal(); input.focus(); }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); dlg.open ? dlg.close() : open(); }
+  });
+  document.querySelectorAll('[data-open-cmdk]').forEach((b) => b.addEventListener('click', open));
+  input.addEventListener('input', () => { sel = 0; render(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(sel + 1, shown.length - 1); render(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); render(); }
+    else if (e.key === 'Enter' && shown[sel]) { e.preventDefault(); run(shown[sel]); }
+  });
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+</script>

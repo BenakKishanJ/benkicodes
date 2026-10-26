@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PixelEdge from '../components/pixel/PixelEdge.astro';
+import { siteConfig } from '../site.config';
+---
+<BaseLayout title="Editorial policy" description="How articles and roadmaps on this site are researched, written with AI assistance, reviewed and corrected.">
+  <section class="sec sec-first sec-pad-b tone-a grid-bg" data-title="man page">
+    <div class="wrap relative z-10">
+      <p class="meta flex justify-between gap-4" aria-hidden="true"><span>EDITORIAL-POLICY(7)</span><span class="hidden sm:inline">{siteConfig.name} Manual</span><span>EDITORIAL-POLICY(7)</span></p>
+      <h1 class="t-1 mt-14" data-reveal>editorial policy</h1>
+      <dl class="mt-12 max-w-2xl space-y-6 text-[13px]" data-reveal>
+        <div><dt class="px-font mb-2 text-[10px] text-accent">NAME</dt><dd class="pl-6">editorial-policy — how articles and roadmaps are researched, written with AI assistance, reviewed and corrected</dd></div>
+        <div><dt class="px-font mb-2 text-[10px] text-accent">AUTHOR</dt><dd class="pl-6">{siteConfig.author.name} &lt;{siteConfig.author.email}&gt;</dd></div>
+      </dl>
+    </div>
+    <PixelEdge to="b" seed={61} />
+  </section>
+  <section class="sec tone-b grid-bg" data-title="read" style="padding-top:clamp(4rem,9vh,7rem)">
+    <div class="wrap"><div class="prose">
+      <p>This site is written by {siteConfig.author.name}, with AI assistance. This page explains exactly what that means, so you can decide how much to trust what you read.</p>
+      <h2>How an article is made</h2>
+      <ol>
+        <li>I choose the topic and collect the source material: documentation, release notes, papers and my own notes.</li>
+        <li>An AI pipeline drafts the article using only those sources, and flags any claim it can't back up.</li>
+        <li>I read the draft, check it against the sources, run any code, and rewrite what's weak.</li>
+        <li>Nothing is published until I approve it.</li>
+      </ol>
+      <h2>Sources and quotes</h2>
+      <p>Every article lists its sources. I paraphrase rather than copy, and quote only short passages with attribution.</p>
+      <h2>Roadmaps and quizzes</h2>
+      <p>Each roadmap shows when it was last reviewed. Quiz questions are checked for a single clear answer and an explanation that teaches.</p>
+      <h2>Corrections</h2>
+      <p>If something is wrong, email <a href={`mailto:${siteConfig.author.email}`}>{siteConfig.author.email}</a>. Corrections are made in the article and the review date is updated.</p>
+      <h2>Ads and affiliate links</h2>
+      <p>If ads or affiliate links appear, they are labelled, and they never change what I write about a tool.</p>
+    </div></div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,28 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHero from '../../components/content/PageHero.astro';
+import RoadmapCard from '../../components/content/RoadmapCard.astro';
+import { getRoadmaps, getModules, roadmapSlug } from '../../lib/content';
+
+const roadmaps = await getRoadmaps();
+const modules = await getModules();
+const count = (slug: string) => modules.filter((m) => roadmapSlug(m.id) === slug).length;
+---
+<BaseLayout title="Roadmaps" description="Structured learning paths for programming languages, frameworks and AI tooling. Every module ends with a quiz." snap="mandatory">
+  <PageHero title="Roadmaps" word="PATHS" full lead="Step-by-step paths with a quiz at the end of every module. Progress is saved in your browser. No account needed.">
+    <dl class="spec max-w-md" data-reveal>
+      <div><dt>roadmaps</dt><dd>{roadmaps.length}</dd></div>
+      <div><dt>modules</dt><dd>{modules.length}</dd></div>
+      <div><dt>progress storage</dt><dd>local, yours</dd></div>
+    </dl>
+  </PageHero>
+  <section class="sec sec-full tone-b grid-bg" data-title="all roadmaps">
+    <div class="wrap">
+      {roadmaps.length ? (
+        <div class="space-y-14">
+          {roadmaps.map((r, i) => <RoadmapCard entry={r} index={i} modules={count(roadmapSlug(r.id))} />)}
+        </div>
+      ) : <p class="px p-6 text-muted">No roadmaps published yet.</p>}
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,8 @@
+---
+interface Props { title?: string; class?: string; bodyClass?: string }
+const { title = 'zsh', class: cls = '', bodyClass = 'p-5' } = Astro.props;
+---
+<section class:list={['px', cls]}>
+  <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="truncate">{title}</span></div>
+  <div class:list={[bodyClass]}><slot /></div>
+</section>

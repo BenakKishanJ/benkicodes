@@ -1,0 +1,9 @@
+---
+interface Props { title: string; meta?: string; id?: string; level?: 'h1' | 'h2' }
+const { title, meta, id, level = 'h2' } = Astro.props;
+const Tag = level;
+---
+<header class="bracket" data-reveal>
+  <Tag id={id} class="t-3">{title}</Tag>
+  {meta && <span class="meta">{meta}</span>}
+</header>

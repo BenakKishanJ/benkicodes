@@ -1,0 +1,43 @@
+---
+import { siteConfig } from '../../site.config';
+import PixelLogo from '../pixel/PixelLogo.astro';
+const year = new Date().getFullYear();
+const path = Astro.url.pathname;
+const social = [
+  { label: 'github', href: siteConfig.author.github },
+  { label: 'linkedin', href: siteConfig.author.linkedin },
+  { label: 'email', href: `mailto:${siteConfig.author.email}` },
+];
+---
+<footer class="sec tone-a grid-bg" style="scroll-snap-align:end;padding-bottom:0;padding-top:clamp(4rem,10vh,7rem)">
+  <div class="wrap">
+    <div class="grid gap-12 md:grid-cols-12">
+      <div class="md:col-span-5">
+        <PixelLogo size={4} />
+        <p class="t-3 mt-6">{siteConfig.name}</p>
+        <p class="meta mt-3 max-w-[38ch]">{siteConfig.tagline}</p>
+      </div>
+      <nav class="md:col-span-2" aria-label="Pages">
+        <p class="meta mb-4">pages</p>
+        <ul class="space-y-2 text-[13px]">{siteConfig.nav.map((n) => <li><a class="hover:text-accent" href={n.href}>{n.label}</a></li>)}</ul>
+      </nav>
+      <nav class="md:col-span-2" aria-label="More">
+        <p class="meta mb-4">more</p>
+        <ul class="space-y-2 text-[13px]">{siteConfig.footerLinks.map((l) => <li><a class="hover:text-accent" href={l.href}>{l.label}</a></li>)}</ul>
+      </nav>
+      <nav class="md:col-span-3" aria-label="Elsewhere">
+        <p class="meta mb-4">elsewhere</p>
+        <ul class="space-y-2 text-[13px]">{social.map((l) => <li><a class="hover:text-accent" href={l.href} rel="me noopener">{l.label}</a></li>)}</ul>
+        <p class="meta mb-3 mt-8">effects</p>
+        <button type="button" class="btn btn-sm" data-fx-toggle>fx: <span data-fx-state>on</span></button>
+      </nav>
+    </div>
+  </div>
+  <div class="tmux mt-16" role="contentinfo">
+    <span class="seg-a">main</span>
+    <span class="seg-b hidden sm:flex">0:benki*</span>
+    <span class="fill truncate">{path}</span>
+    <span class="seg-b hidden sm:flex">theme: <span data-theme-label>wave</span></span>
+    <span class="seg-b">© {year} {siteConfig.author.name}</span>
+  </div>
+</footer>

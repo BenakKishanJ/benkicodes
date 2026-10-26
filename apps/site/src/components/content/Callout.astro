@@ -1,0 +1,9 @@
+---
+interface Props { kind?: 'info' | 'tip' | 'warn' }
+const { kind = 'info' } = Astro.props;
+const color = { info: 'var(--accent)', tip: 'var(--green)', warn: 'var(--yellow)' }[kind];
+---
+<aside class="px my-8 p-5" style={`--bc:${color}`} role="note">
+  <p class="px-font mb-2 text-[10px]" style={`color:${color}`}>[{kind}]</p>
+  <div class="text-[14px] [&>*:last-child]:mb-0"><slot /></div>
+</aside>

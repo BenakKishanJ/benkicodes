@@ -1,0 +1,24 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import Pips from '../pixel/Pips.astro';
+import PixelIcon from '../pixel/PixelIcon.astro';
+import { roadmapSlug } from '../../lib/content';
+import { formatDate } from '../../lib/utils';
+interface Props { entry: CollectionEntry<'roadmaps'>; modules: number; index: number }
+const { entry, modules, index } = Astro.props;
+const { data } = entry;
+---
+<article class="card px px-hover px-accent flex flex-col gap-5 p-6 sm:p-9 md:flex-row md:items-start md:gap-10" data-reveal>
+  <p class="px-font text-[2rem] leading-none text-accent sm:text-[2.75rem]" aria-hidden="true">{String(index + 1).padStart(2, '0')}</p>
+  <div class="flex-1">
+    <h3 class="t-2"><a class="card-link" href={`/roadmaps/${roadmapSlug(entry.id)}/`}>{data.title}</a></h3>
+    <p class="mt-4 max-w-[52ch] text-[13px] leading-relaxed text-muted">{data.description}</p>
+    <dl class="mt-7 flex flex-wrap gap-x-8 gap-y-2 text-xs">
+      <div class="flex items-center gap-2"><dt class="sr-only">Level</dt><dd><Pips level={data.level} /></dd></div>
+      <div><dt class="sr-only">Modules</dt><dd>{modules} modules</dd></div>
+      <div><dt class="sr-only">Time</dt><dd>~{data.estimatedHours}h</dd></div>
+      <div class="text-muted"><dt class="sr-only">Reviewed</dt><dd>reviewed {formatDate(data.lastReviewed)}</dd></div>
+    </dl>
+  </div>
+  <span class="arrow-btn self-end md:self-center" aria-hidden="true"><PixelIcon name="arrow-right" size={2} /></span>
+</article>

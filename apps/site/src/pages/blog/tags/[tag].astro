@@ -1,0 +1,27 @@
+---
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHero from '../../../components/content/PageHero.astro';
+import PostCard from '../../../components/content/PostCard.astro';
+import { getPosts } from '../../../lib/content';
+
+export const getStaticPaths = (async () => {
+  const posts = await getPosts();
+  const tags = [...new Set(posts.flatMap((p) => p.data.tags))];
+  return tags.map((tag) => ({ params: { tag }, props: { posts: posts.filter((p) => p.data.tags.includes(tag)) } }));
+}) satisfies GetStaticPaths;
+
+const { tag } = Astro.params;
+const { posts } = Astro.props;
+// Thin archives stay out of the index until they have 3+ posts (see noindex below).
+---
+<BaseLayout title={`Posts tagged ${tag}`} description={`All posts tagged ${tag}.`} noindex={posts.length < 3}>
+  <PageHero title={`#${tag}`} word={String(tag).toUpperCase().slice(0, 6)} crumbs={[{ label: 'blog', href: '/blog/' }, { label: 'tags' }]}
+    lead={`${posts.length} ${posts.length === 1 ? 'post' : 'posts'} tagged ${tag}.`} />
+  <section class="sec tone-b grid-bg" data-title="posts" style="padding-top:clamp(4rem,9vh,7rem)">
+    <div class="wrap">
+      <div class="grid gap-10 md:grid-cols-2 lg:grid-cols-3">{posts.map((p) => <PostCard post={p} />)}</div>
+      <p class="mt-16"><a class="btn" href="/blog/">all posts</a></p>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,12 @@
+---
+import { coverArt } from '../../lib/art';
+import PixelEdge from './PixelEdge.astro';
+interface Props { seed: string; src?: string; alt?: string; parallax?: number; class?: string }
+const { seed, src, alt = '', parallax = 0.04, class: cls = '' } = Astro.props;
+---
+<div class:list={['cover', cls]} data-dissolve>
+  <div class="cover-in" data-parallax={parallax}>
+    {src ? <img src={src} alt={alt} loading="lazy" /> : <Fragment set:html={coverArt(seed)} />}
+  </div>
+  <PixelEdge to="card" seed={seed.length} />
+</div>

@@ -1,0 +1,27 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import PixelCover from '../pixel/PixelCover.astro';
+import { formatDate, isoDate, readingTime } from '../../lib/utils';
+interface Props { post: CollectionEntry<'blog'>; featured?: boolean }
+const { post, featured = false } = Astro.props;
+const { data } = post;
+---
+<article class:list={['card px px-hover flex h-full', featured ? 'flex-col md:flex-row' : 'flex-col']} data-reveal>
+  <div class:list={[featured && 'md:w-[55%] md:shrink-0']}>
+    <PixelCover seed={post.id} src={data.cover?.src} alt={data.cover?.alt} class={featured ? 'md:!aspect-auto md:h-full md:min-h-[22rem]' : ''} />
+  </div>
+  <div class:list={['flex flex-1 flex-col gap-3 p-5 sm:p-7', featured && 'md:justify-center md:p-10']}>
+    <p class="meta flex flex-wrap gap-x-3">
+      <time datetime={isoDate(data.pubDate)}>{formatDate(data.pubDate)}</time>
+      <span>{readingTime(post.body)} min</span>
+      <span class="text-accent">{data.category}</span>
+    </p>
+    <h3 class:list={[featured ? 't-2' : 't-3']}>
+      <a href={`/blog/${post.id}/`} class="card-link">{data.title}</a>
+    </h3>
+    <p class="text-[13px] leading-relaxed text-muted">{data.description}</p>
+    <div class="relative z-10 mt-auto flex flex-wrap gap-2 pt-3">
+      {data.tags.slice(0, 3).map((t) => <a class="tag" href={`/blog/tags/${t}/`}>{t}</a>)}
+    </div>
+  </div>
+</article>

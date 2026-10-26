@@ -1,0 +1,33 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHero from '../../components/content/PageHero.astro';
+import PixelIcon from '../../components/pixel/PixelIcon.astro';
+import { getProjects } from '../../lib/content';
+const projects = await getProjects();
+const color = { active: 'var(--green)', shipped: 'var(--blue)', archived: 'var(--muted)' } as const;
+---
+<BaseLayout title="Projects" description="Things I've built and am building: what they do, how they work, and what I learned.">
+  <PageHero title="Projects" word="BUILD" lead="What I've built, how it works, and what I'd change next time." />
+  <section class="sec tone-b grid-bg" data-title="all projects" style="padding-top:clamp(4rem,9vh,7rem)">
+    <div class="wrap">
+      <ul class="border-t-2 border-line">
+        {projects.map((p, i) => (
+          <li class="row border-b-2 border-line" data-reveal>
+            <a href={`/projects/${p.id}/`} class="card grid items-center gap-x-8 gap-y-4 px-2 py-10 sm:px-6 md:grid-cols-12">
+              <span class="px-font text-[11px] text-accent md:col-span-1">{String(i + 1).padStart(2, '0')}</span>
+              <div class="md:col-span-6">
+                <h2 class="t-2">{p.data.title}</h2>
+                <p class="mt-4 max-w-[52ch] text-[13px] leading-relaxed text-muted">{p.data.summary}</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 md:col-span-4">
+                <span class="mr-3 inline-flex items-center text-[12px]" style={`color:${color[p.data.status]}`}><span class="dot"></span>{p.data.status}</span>
+                {p.data.stack.slice(0, 3).map((s) => <span class="tag tag-plain">{s}</span>)}
+              </div>
+              <span class="arrow-btn justify-self-end md:col-span-1" aria-hidden="true"><PixelIcon name="arrow-right" size={2} /></span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</BaseLayout>

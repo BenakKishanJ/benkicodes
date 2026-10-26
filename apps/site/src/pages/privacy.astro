@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PixelEdge from '../components/pixel/PixelEdge.astro';
+import { siteConfig } from '../site.config';
+---
+<BaseLayout title="Privacy policy" description="What data this site collects, what it stores in your browser, and how to contact the owner.">
+  <section class="sec sec-first sec-pad-b tone-a grid-bg" data-title="man page">
+    <div class="wrap relative z-10">
+      <p class="meta flex justify-between gap-4" aria-hidden="true"><span>PRIVACY(7)</span><span class="hidden sm:inline">{siteConfig.name} Manual</span><span>PRIVACY(7)</span></p>
+      <h1 class="t-1 mt-14" data-reveal>privacy policy</h1>
+      <dl class="mt-12 max-w-2xl space-y-6 text-[13px]" data-reveal>
+        <div><dt class="px-font mb-2 text-[10px] text-accent">NAME</dt><dd class="pl-6">privacy — what data this site collects, what it keeps in your browser, and how to reach the owner</dd></div>
+        <div><dt class="px-font mb-2 text-[10px] text-accent">AUTHOR</dt><dd class="pl-6">{siteConfig.author.name} &lt;{siteConfig.author.email}&gt;</dd></div>
+      </dl>
+    </div>
+    <PixelEdge to="b" seed={61} />
+  </section>
+  <section class="sec tone-b grid-bg" data-title="read" style="padding-top:clamp(4rem,9vh,7rem)">
+    <div class="wrap"><div class="prose">
+      <p><em>Template: review with a legal professional and update it to match the services you actually enable (analytics, ads, newsletter).</em></p>
+      <h2>What is stored in your browser</h2>
+      <p>This site saves your theme choice, your effects preference and your roadmap quiz progress in your browser's local storage. This data never leaves your device unless you export it yourself.</p>
+      <h2>Analytics</h2>
+      <p>If analytics are enabled, the site uses a privacy-focused service that does not use cookies for tracking. Update this section with the provider you choose.</p>
+      <h2>Advertising</h2>
+      <p>If ads are enabled, third-party vendors including Google may use cookies to serve ads based on prior visits. You can opt out of personalised advertising in Google's ad settings. Update this section when you enable ads.</p>
+      <h2>Contact</h2>
+      <p>Questions about privacy: <a href={`mailto:${siteConfig.author.email}`}>{siteConfig.author.email}</a>.</p>
+    </div></div>
+  </section>
+</BaseLayout>

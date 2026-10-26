@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import TerminalWindow from '../components/pixel/TerminalWindow.astro';
+import PixelIcon from '../components/pixel/PixelIcon.astro';
+---
+<BaseLayout title="Page not found" noindex snap="none">
+  <section class="sec sec-full sec-first tone-a grid-bg" data-title="404">
+    <span class="absolute left-[10%] top-[28%] hidden md:block" data-parallax="0.3" style="color:var(--red)" aria-hidden="true"><PixelIcon name="heart" size={4} class="blink" /></span>
+    <div class="wrap relative z-10 grid items-center gap-14 lg:grid-cols-12">
+      <div class="lg:col-span-6">
+        <h1 class="h-hero glitch" style="font-size:clamp(4rem,16vw,11rem)">404</h1>
+        <p class="lead mt-8">Kernel panic: this page was not found. It may have moved, or it never existed.</p>
+        <p class="mt-10 flex flex-wrap gap-6">
+          <a class="btn btn-primary" href="/">return to ~</a>
+          <a class="btn" href="/blog/">blog</a>
+          <a class="btn" href="/roadmaps/">roadmaps</a>
+          <button class="btn" type="button" data-open-cmdk>search</button>
+        </p>
+      </div>
+      <div class="lg:col-span-6">
+        <TerminalWindow title="zsh — dmesg" bodyClass="p-6 text-[12px] leading-[2]" class="[--sh:var(--red)] [--o:10px]">
+          <p class="prompt">cd {Astro.url.pathname}</p>
+          <p style="color:var(--red)">zsh: no such file or directory</p>
+          <p class="muted">[    0.000042] Kernel panic - not syncing: page not found</p>
+          <p class="muted">[    0.000043] CPU: 0 PID: 404 Comm: browser</p>
+          <p class="muted">[    0.000044] ---[ end Kernel panic ]---</p>
+          <p class="prompt">help<span class="caret" aria-hidden="true"></span></p>
+        </TerminalWindow>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

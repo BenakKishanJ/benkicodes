@@ -1,0 +1,12 @@
+{
+  "name": "pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "uv sync",
+    "dev": "uv run pipeline serve",
+    "dev:token": "uv run pipeline token",
+    "test": "uv run pytest -q"
+  }
+}

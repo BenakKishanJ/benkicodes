@@ -1,0 +1,11 @@
+---
+// Pixel-dither "dissolve" edge. Place it at the bottom of a section and set `to`
+// to the tone of the NEXT section (or 'card' inside a card cover).
+import { edgeSvg } from '../../lib/art';
+interface Props { to: 'a' | 'b' | 'card'; top?: boolean; seed?: number }
+const { to, top = false, seed = 1 } = Astro.props;
+---
+<div class:list={['edge', `edge-${to}`, top && 'edge-top']} aria-hidden="true">
+  <div class="d" set:html={edgeSvg(96, 6, seed, top)} />
+  <div class="m" set:html={edgeSvg(32, 4, seed + 7, top)} />
+</div>

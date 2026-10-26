@@ -1,0 +1,60 @@
+---
+import { siteConfig } from '../../site.config';
+import PixelIcon from '../pixel/PixelIcon.astro';
+import PixelLogo from '../pixel/PixelLogo.astro';
+import ThemeSwitcher from './ThemeSwitcher.astro';
+const path = Astro.url.pathname;
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+---
+<header class="bar tone-a">
+  <div class="wrap bar-in">
+    <a href="/" class="brand" aria-label={`${siteConfig.name} home`}>
+      <PixelLogo size={2} />
+      <span class="hidden sm:inline">{siteConfig.shortName}<span class="text-muted">@codes</span><span class="text-accent">:~$</span></span>
+    </a>
+    <nav aria-label="Primary" class="ml-4 hidden h-full md:flex">
+      {siteConfig.nav.map((n, i) => (
+        <a href={n.href} class="ws" aria-current={isActive(n.href) ? 'page' : undefined}><span class="n">{i + 1}</span>{n.label}</a>
+      ))}
+    </nav>
+    <div class="ml-auto flex items-center gap-3">
+      <span class="meta hidden lg:inline" title="local time"><span data-clock>--:--</span></span>
+      {siteConfig.features.commandPalette && (
+        <button type="button" class="icon-btn md:inline-flex md:w-auto md:items-center md:gap-2 md:px-3" data-open-cmdk aria-label="Open command palette">
+          <PixelIcon name="search" size={2} /><span class="kbd hidden md:inline">Ctrl K</span>
+        </button>
+      )}
+      <div class="hidden md:block"><ThemeSwitcher /></div>
+      <button type="button" id="menu-btn" class="icon-btn md:hidden" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">
+        <PixelIcon name="menu" size={2} class="i-menu" /><PixelIcon name="close" size={2} class="i-close" />
+      </button>
+    </div>
+  </div>
+</header>
+
+<div id="mobile-menu" class="mobile-menu tone-a grid-bg" hidden>
+  <nav aria-label="Mobile">
+    <ol>
+      {siteConfig.nav.map((n, i) => (
+        <li>
+          <a href={n.href} class="menu-item" data-menu-link style={`--i:${i}`} aria-current={isActive(n.href) ? 'page' : undefined}>
+            <span class="num">{String(i + 1).padStart(2, '0')}</span>
+            <span>{n.label}</span>
+            <span class="go"><PixelIcon name="arrow-right" size={3} /></span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </nav>
+  <div class="menu-foot mt-auto pt-12">
+    <p class="meta mb-4">choose a theme</p>
+    <ThemeSwitcher labels />
+    <p class="meta mt-8">{siteConfig.name} · press esc to close</p>
+  </div>
+</div>
+
+<style is:global>
+  #menu-btn .i-close { display: none; }
+  html.menu-open #menu-btn .i-close { display: block; }
+  html.menu-open #menu-btn .i-menu { display: none; }
+</style>

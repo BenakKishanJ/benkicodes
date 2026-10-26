@@ -1,0 +1,94 @@
+---
+import '@fontsource/press-start-2p';
+import '@fontsource-variable/martian-mono';
+import '@fontsource-variable/jetbrains-mono';
+import '../styles/global.css';
+import { siteConfig } from '../site.config';
+import { themeIds, DEFAULT_THEME } from '../lib/themes';
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import CommandPalette from '../components/layout/CommandPalette.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  canonical?: string;
+  noindex?: boolean;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** How hard sections snap to the viewport while scrolling. */
+  snap?: 'mandatory' | 'proximity' | 'none';
+}
+const {
+  title, description = siteConfig.description, image = '/og-default.png', type = 'website',
+  publishedTime, modifiedTime, canonical, noindex = false, jsonLd, snap = 'proximity',
+} = Astro.props;
+
+const fullTitle = Astro.url.pathname === '/' ? `${siteConfig.name}: ${siteConfig.tagline}` : `${title} | ${siteConfig.name}`;
+const canonicalUrl = canonical ?? new URL(Astro.url.pathname, siteConfig.url).href;
+const imageUrl = new URL(image, siteConfig.url).href;
+
+// Runs before first paint so there is no flash of the wrong theme.
+const themeBoot = `(function(){var d=document.documentElement;try{var ids=${JSON.stringify(themeIds)};var t=localStorage.getItem('benki-theme');if(ids.indexOf(t)<0)t='${DEFAULT_THEME}';d.dataset.theme=t;d.dataset.fx=localStorage.getItem('benki-fx')||'on'}catch(e){d.dataset.theme='${DEFAULT_THEME}';d.dataset.fx='on'}d.classList.add('js')})();`;
+
+const siteJsonLd = {
+  '@context': 'https://schema.org', '@type': 'WebSite',
+  name: siteConfig.name, url: siteConfig.url, description: siteConfig.description,
+  author: { '@type': 'Person', name: siteConfig.author.name, sameAs: [siteConfig.author.github, siteConfig.author.linkedin] },
+};
+const ld = [siteJsonLd, ...(Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [])];
+---
+<!doctype html>
+<html lang={siteConfig.locale} data-theme="wave" data-fx="on" data-snap={snap}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline set:html={themeBoot}></script>
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="alternate" type="application/rss+xml" title={`${siteConfig.name} RSS`} href="/rss.xml" />
+
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={imageUrl} />
+    {publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
+    {modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+
+    {ld.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o)} />)}
+
+    {siteConfig.ads.enabled && (
+      <script is:inline async crossorigin="anonymous"
+        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${siteConfig.ads.client}`}></script>
+    )}
+    {siteConfig.analytics.cloudflareToken && (
+      <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon={JSON.stringify({ token: siteConfig.analytics.cloudflareToken })}></script>
+    )}
+  </head>
+  <body class="tone-a">
+    <a href="#main" class="skip-link">skip to content</a>
+    <div id="scrollbar" aria-hidden="true"></div>
+    <Header />
+    <main id="main"><slot /></main>
+    <Footer />
+    {siteConfig.features.commandPalette && <CommandPalette />}
+    <nav id="secnav" aria-label="Sections" hidden></nav>
+    <script>
+      import '../scripts/fx';
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+---
+import { SPRITES, spriteRects } from '../../lib/sprites';
+interface Props { name: string; size?: number; class?: string; label?: string }
+const { name, size = 2, class: cls = '', label } = Astro.props;
+const rows = SPRITES[name];
+if (!rows) throw new Error(`PixelIcon: unknown sprite "${name}"`);
+const w = rows[0].length, h = rows.length;
+---
+<svg class={cls} width={w * size} height={h * size} viewBox={`0 0 ${w} ${h}`} fill="currentColor"
+  shape-rendering="crispEdges" aria-hidden={label ? undefined : 'true'} role={label ? 'img' : undefined} aria-label={label}
+  set:html={spriteRects(rows)} />

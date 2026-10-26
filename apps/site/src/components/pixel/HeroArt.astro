@@ -1,0 +1,28 @@
+---
+// Theme-specific hero art. PNGs live in /public/art/; SVGs (src/lib/art.ts) are fallbacks.
+import fs from 'node:fs';
+import { waveArt, dragonArt, lotusArt } from '../../lib/art';
+const kinds: [string, string, string, string][] = [
+  ['wave', waveArt(), 'A great wave curling in front of a mountain', 'kanagawa_wave.png'],
+  ['dragon', dragonArt(), 'A dragon winding through clouds', 'kanagawa_dragon.png'],
+  ['lotus', lotusArt(), 'A lotus flower on a lily pad', 'kanagawa_lotus .png'],
+];
+const hasPng = (file: string) => fs.existsSync(`public/art/${file}`);
+---
+<div class="hero-art">
+  {kinds.map(([k, svg, alt, png]) => (
+    <figure class={`art art-${k}`}>
+      {hasPng(png)
+        ? <img src={`/art/${png.replace(/ /g, '%20')}`} alt={alt} style="image-rendering:pixelated;width:100%;height:auto" />
+        : <Fragment set:html={svg} />}
+    </figure>
+  ))}
+</div>
+<style is:global>
+  .hero-art figure.art { display: none; margin: 0; }
+  .hero-art figure.art svg { width: 100%; height: auto; aspect-ratio: 64 / 44; }
+  :root:not([data-theme]) .art-wave,
+  :root[data-theme="wave"] .art-wave,
+  :root[data-theme="dragon"] .art-dragon,
+  :root[data-theme="lotus"] .art-lotus { display: block; }
+</style>

@@ -1,0 +1,20 @@
+---
+import { formatDate } from '../../lib/utils';
+interface Props { sources: { title: string; url: string; publisher?: string; accessed?: Date }[] }
+const { sources } = Astro.props;
+---
+<section aria-labelledby="sources-h" class="px p-6 sm:p-8">
+  <h2 id="sources-h" class="t-3 mb-5">see also: sources</h2>
+  <ol class="space-y-3 text-[13px]">
+    {sources.map((s, i) => (
+      <li class="flex gap-4">
+        <span class="px-font text-[10px] leading-[1.9] text-accent">[{i + 1}]</span>
+        <span>
+          <a href={s.url} rel="noopener noreferrer" target="_blank" class="underline decoration-dashed decoration-2 underline-offset-4 hover:text-accent">{s.title}</a>
+          {s.publisher && <span class="text-muted"> · {s.publisher}</span>}
+          {s.accessed && <span class="text-muted"> · accessed {formatDate(s.accessed)}</span>}
+        </span>
+      </li>
+    ))}
+  </ol>
+</section>

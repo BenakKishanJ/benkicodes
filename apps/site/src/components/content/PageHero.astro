@@ -1,0 +1,20 @@
+---
+// Standard first section for list pages: giant outlined background word, title, lead, optional slot.
+import PixelEdge from '../pixel/PixelEdge.astro';
+interface Props { title: string; lead?: string; word?: string; next?: 'a' | 'b'; full?: boolean; crumbs?: { label: string; href?: string }[] }
+const { title, lead, word, next = 'b', full = false, crumbs } = Astro.props;
+---
+<section class:list={['sec sec-first sec-pad-b tone-a grid-bg', full && 'sec-full']} data-title={title}>
+  {word && <span class="bgword" style="right:-3%;top:22%" data-parallax-x="0.1" data-parallax="0.12" aria-hidden="true">{word}</span>}
+  <div class="wrap relative z-10">
+    {crumbs && (
+      <nav aria-label="Breadcrumb" class="meta mb-10 flex flex-wrap gap-2" data-reveal>
+        {crumbs.map((c, i) => (<><Fragment>{c.href ? <a href={c.href} class="hover:text-accent">{c.label}</a> : <span>{c.label}</span>}</Fragment>{i < crumbs.length - 1 && <span aria-hidden="true">/</span>}</>))}
+      </nav>
+    )}
+    <h1 class="t-1 max-w-[16ch] sm:max-w-[20ch]" data-reveal>{title}</h1>
+    {lead && <p class="lead mt-8 sm:mt-10" data-reveal>{lead}</p>}
+    <div class="mt-10 sm:mt-14"><slot /></div>
+  </div>
+  <PixelEdge to={next} />
+</section>
