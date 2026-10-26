@@ -1,13 +1,14 @@
 """Deterministic quality gates run on every draft before the human sees it.
 Each gate returns {name, status: pass|warn|fail, detail}. Any 'fail' blocks publishing unless the author overrides."""
 from __future__ import annotations
+
 import re
 from concurrent.futures import ThreadPoolExecutor
+
 import httpx
-from pydantic import ValidationError
 
 CITE_RE = re.compile(r"\[(S\d+(?:\s*,\s*S\d+)*)\]")
-CODE_RE = re.compile(r"```.*?```", re.S)
+CODE_RE = re.compile(r"```.*?```", re.DOTALL)
 QUOTE_RE = re.compile(r"[\"“]([^\"”\n]{12,})[\"”]")
 
 
@@ -53,7 +54,7 @@ def check_links(urls: list[str], timeout: float = 6.0) -> list[tuple[str, str]]:
             if r.status_code in (405, 403, 501):
                 r = httpx.get(u, timeout=timeout, follow_redirects=True, headers={"User-Agent": "BenKiContentBot/0.1"})
             return None if r.status_code < 400 else (u, f"HTTP {r.status_code}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001 any probe failure is just a warn
             return (u, type(e).__name__)
     with ThreadPoolExecutor(max_workers=6) as ex:
         return [x for x in ex.map(probe, urls[:20]) if x]

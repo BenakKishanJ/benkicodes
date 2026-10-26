@@ -1,0 +1,25 @@
+# Per-task model routing (03-prd §4.2). The admin settings screen can change
+# these later; model ids are never hard-coded in pipeline code.
+#
+# Rules of thumb (PRD 03 §2.1):
+#   fast   - cheap, valid structured output (quizzes, small jobs)
+#   plan   - reasoning + structured output
+#   write  - long-form quality (lessons/articles/revisions)
+#   check  - strong critic, different model family from `write`
+tasks:
+  fast:
+    model: nvidia/nemotron-3-super-120b-a12b:free   # structured-capable free model
+    fallbacks: [deepseek/deepseek-v4-flash]
+    temperature: 0.2
+  plan:
+    model: deepseek/deepseek-v4-flash
+    fallbacks: [z-ai/glm-5.3-flash]
+    temperature: 0.3
+  write:
+    model: deepseek/deepseek-v4-flash
+    fallbacks: [nvidia/nemotron-3-super-120b-a12b:free]
+    temperature: 0.7
+  check:
+    model: z-ai/glm-5.3-flash                        # different family from write
+    fallbacks: [deepseek/deepseek-v4.1-flash]
+    temperature: 0.2

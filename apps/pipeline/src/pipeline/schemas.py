@@ -1,8 +1,14 @@
-"""Pydantic models: API input, LLM structured outputs, and the content contract with the Astro site."""
+"""Pydantic models: API input, LLM structured outputs, and the content contract with the Astro site.
+
+Lean blog flow (03-prd §6): plan -> write -> check. `check` returns scores, issues,
+unsupported statements AND the SEO package in one call.
+"""
 from __future__ import annotations
+
 import re
 from datetime import date
 from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -32,37 +38,26 @@ class RunRequest(BaseModel):
     length: Literal["short", "medium", "long"] = "medium"
     notes: str = ""                      # Ben's own opinions/experience; the only place first-person claims may come from
     sources: list[SourceInput] = Field(min_length=1, max_length=12)
-    checkpoint_outline: bool | None = None
+    checkpoint_plan: bool | None = None  # pause for plan approval before writing
+    budget_usd: float | None = None      # per-run cost cap; None -> Settings.blog_budget_usd
 
 
 # ---------------------------------------------------------------- LLM outputs
-class SourceSummary(BaseModel):
-    title: str = Field(description="A short descriptive title for the source")
-    summary: str = Field(description="2-3 sentences: what this source says and why it is credible or not")
-    trust: Literal["high", "medium", "low"]
+class KeyPoint(BaseModel):
+    point: str = Field(description="One specific idea this section will make, in your own words")
+    source_ids: list[str] = Field(min_length=1, description="Source ids (S1, S2, ...) that support it")
 
 
-class Claim(BaseModel):
-    id: str
-    text: str = Field(description="One atomic, checkable factual claim, in your own words")
-    source_ids: list[str] = Field(min_length=1)
-
-
-class ClaimList(BaseModel):
-    claims: list[Claim] = Field(min_length=1)
-
-
-class OutlineSection(BaseModel):
-    id: str
+class PlanSection(BaseModel):
     heading: str
     goal: str = Field(description="What the reader should understand after this section")
-    claim_ids: list[str] = []
+    key_points: list[KeyPoint] = Field(min_length=1)
 
 
-class Outline(BaseModel):
-    angle: str = Field(description="What this article offers that top search results do not")
+class BlogPlan(BaseModel):
+    angle: str = Field(description="What this article offers that the top search results do not")
     working_title: str
-    sections: list[OutlineSection] = Field(min_length=2, max_length=9)
+    sections: list[PlanSection] = Field(min_length=2, max_length=9)
 
 
 class Scores(BaseModel):
@@ -82,13 +77,7 @@ class Issue(BaseModel):
     fix: str
 
 
-class Critique(BaseModel):
-    scores: Scores
-    issues: list[Issue] = []
-    unsupported_claims: list[str] = Field(default=[], description="Statements in the draft that no source supports")
-
-
-class SEOPackage(BaseModel):
+class SEOItem(BaseModel):
     title: str = Field(max_length=70)
     description: str = Field(min_length=70, max_length=160)
     slug: str
@@ -117,11 +106,18 @@ class SEOPackage(BaseModel):
         return out
 
 
+class CheckResult(BaseModel):
+    scores: Scores
+    issues: list[Issue] = []
+    unsupported_claims: list[str] = Field(default=[], description="Statements in the draft that no source supports")
+    seo: SEOItem
+
+
 # ---------------------------------------------------------------- human decisions (resume payloads)
-class OutlineDecision(BaseModel):
+class PlanDecision(BaseModel):
     action: Literal["approve", "revise"]
     comments: list[str] = []
-    outline: dict | None = None          # Ben's edited outline wins when provided
+    plan: dict | None = None             # Ben's edited plan wins when provided
 
 
 class Decision(BaseModel):
@@ -132,7 +128,7 @@ class Decision(BaseModel):
     force: bool = False                  # publish even though a blocking gate failed
 
 
-# ---------------------------------------------------------------- content contract (mirrors src/content.config.ts)
+# ---------------------------------------------------------------- content contract (mirrors packages/content-schema)
 class SourceRef(BaseModel):
     title: str
     url: str

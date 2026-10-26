@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import secrets
 from pathlib import Path
+
 import typer
 
 app = typer.Typer(add_completion=False, help="BenKi content pipeline")

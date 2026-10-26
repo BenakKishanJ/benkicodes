@@ -1,17 +1,41 @@
-"""Turns an approved draft into a post file in the Astro repo and (optionally) commits + pushes it to main."""
+"""Turns an approved draft into a post file and pushes it to the site repo's main
+through a detached worktree (03-prd §11.2). The author's working tree is never touched.
+
+PUBLISH_MODE=git   -> fetch, worktree reset to origin/main, write, commit, push (rebase-retry)
+PUBLISH_MODE=files -> dry run: write into the worktree and return the diff, no commit
+"""
 from __future__ import annotations
-import re, subprocess
+
+import difflib
+import re
+import subprocess
 from datetime import date
 from pathlib import Path
+
 import yaml
 from pydantic import ValidationError
+
 from ..config import Settings
-from ..schemas import Frontmatter, SourceRef
+from ..schemas import SLUG_RE, Frontmatter, SourceRef
 from .gates import CITE_RE
 
 
 class PublishError(Exception):
     pass
+
+
+def trust_of(url: str | None) -> str:
+    """Cheap heuristic trust rating (no model call): primary-source domains rate high."""
+    u = (url or "").lower()
+    d = u.split("/")[2] if "://" in u and len(u.split("/")) > 2 else ""
+    if not d:
+        return "medium"
+    if d.startswith(("docs.", "developers.", "learn.", "") ) or "official" in d or d in (
+            "github.com", "developer.mozilla.org"):
+        return "high"
+    if d.count(".") > 2 or "blog" in d or "medium.com" in d or "substack.com" in d:
+        return "low"
+    return "medium"
 
 
 def renumber_citations(body: str, sources: list[dict]) -> tuple[str, list[dict]]:
@@ -57,38 +81,78 @@ def render_post(fm: Frontmatter, body: str) -> str:
 
 
 def _git(repo: Path, *args: str) -> str:
-    r = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
+    r = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=False)
     if r.returncode != 0:
-        raise PublishError(f"git {' '.join(args)} failed: {(r.stderr or r.stdout).strip()[:500]}")
+        raise PublishError(f"git {' '.join(args[:3])} failed: {(r.stderr or r.stdout).strip()[:500]}")
     return r.stdout.strip()
 
 
+def _prepare_worktree(repo: Path, wt: Path, branch: str, remote: str) -> None:
+    """Detach `wt` at origin/<branch>, creating or resetting it as needed."""
+    _git(repo, "fetch", remote, branch)
+    if wt.exists():
+        out = _git(repo, "worktree", "list", "--porcelain")
+        blocks = out.split("\n\n")
+        known = any(wt.resolve().as_posix() in b for b in blocks)
+        if not known:
+            raise PublishError(f"{wt} exists but is not a registered git worktree; move or delete it")
+        _git(wt, "reset", "--hard", f"{remote}/{branch}")
+        _git(wt, "clean", "-fd")
+    else:
+        wt.parent.mkdir(parents=True, exist_ok=True)
+        _git(repo, "worktree", "add", "--detach", str(wt), f"{remote}/{branch}")
+
+
 def publish_post(content: str, slug: str, title: str, run_id: str, s: Settings) -> dict:
+    if not SLUG_RE.match(slug):
+        raise PublishError(f"invalid slug {slug!r}: lowercase-kebab-case only")
     repo = Path(s.site_repo_path).expanduser().resolve()
-    target_dir = repo / s.site_blog_dir
-    if not repo.exists() or not target_dir.exists():
-        raise PublishError(f"site repo not found at {target_dir}. Set SITE_REPO_PATH in .env")
-    target = target_dir / f"{slug}.md"
-    if target.exists() and f"pipelineRunId: {run_id}" not in target.read_text(encoding="utf-8"):
-        raise PublishError(f"{target.name} already exists and was not created by this run. Change the slug in the metadata tab.")
+    if not repo.exists() or not (repo / ".git").exists():
+        raise PublishError(f"site repo not found at {repo}. Set SITE_REPO_PATH in .env")
+    rel = f"{s.site_blog_dir}/{slug}.md"
+    wt = s.worktree_dir
+    _prepare_worktree(repo, wt, s.git_branch, s.git_remote)
+
+    target = wt / s.site_blog_dir / f"{slug}.md"
+    if not target.parent.exists():
+        target.parent.mkdir(parents=True)   # new blog dir in a fresh worktree
+    if target.exists() and run_id not in target.read_text(encoding="utf-8"):
+        raise PublishError(f"{slug}.md already exists on main and was not created by this run. Change the slug in the metadata tab.")
+
+    old = target.read_text(encoding="utf-8") if target.exists() else ""
+    target.write_text(content, encoding="utf-8")
 
     if s.publish_mode == "files":
-        target.write_text(content, encoding="utf-8")
-        return {"mode": "files", "path": str(target), "url": f"{s.site_base_url}/blog/{slug}/", "commit": None}
+        diff = "\n".join(difflib.unified_diff(old.splitlines() if old else ["<new file>"],
+                                              content.splitlines(), "origin/main", "proposed", lineterm="", n=3))
+        _git(wt, "reset", "--hard", f"{s.git_remote}/{s.git_branch}")  # leave nothing behind
+        _git(repo, "worktree", "prune")
+        return {"mode": "files", "path": rel, "url": f"{s.site_base_url}/blog/{slug}/",
+                "commit": None, "diff": diff}
 
-    if not (repo / ".git").exists():
-        raise PublishError("PUBLISH_MODE=git but the site repo is not a git repository")
-    branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
-    if branch != s.git_branch:
-        raise PublishError(f"site repo is on '{branch}', expected '{s.git_branch}'. Switch branches or change GIT_BRANCH.")
-    _git(repo, "pull", "--rebase", "--autostash", s.git_remote, s.git_branch)
-    target.write_text(content, encoding="utf-8")
-    rel = str(target.relative_to(repo))
-    _git(repo, "add", "--", rel)
-    _git(repo, "commit", "-m", f"content: {title[:60]}", "--", rel)
+    _git(wt, "add", "--", rel)
+    _git(wt, "commit", "-m", f"content: {title[:60]}", "--", rel)
+    push_err = None
+    for attempt in range(3):
+        try:
+            _git(wt, "push", s.git_remote, f"HEAD:{s.git_branch}")
+            push_err = None
+            break
+        except PublishError as e:
+            push_err = e                      # main moved; rebase this one commit and retry
+            try:
+                _git(wt, "fetch", s.git_remote, s.git_branch)
+                _git(wt, "rebase", f"{s.git_remote}/{s.git_branch}")
+            except PublishError:
+                pass
+    if push_err:
+        # keep the commit for inspection; the retry button runs steps 2-3 again
+        raise PublishError(f"push failed after 3 attempts (commit kept on the worktree): {push_err}")
+    head = _git(wt, "rev-parse", "--short", "HEAD")
+    # leave the worktree clean for the next publish
     try:
-        _git(repo, "push", s.git_remote, s.git_branch)
+        _git(wt, "reset", "--hard", f"{s.git_remote}/{s.git_branch}")
+        _git(repo, "worktree", "prune")
     except PublishError:
-        _git(repo, "reset", "--soft", "HEAD~1")  # keep the file, drop the unpushed commit so a retry is clean
-        raise
-    return {"mode": "git", "path": rel, "url": f"{s.site_base_url}/blog/{slug}/", "commit": _git(repo, "rev-parse", "--short", "HEAD")}
+        pass
+    return {"mode": "git", "path": rel, "url": f"{s.site_base_url}/blog/{slug}/", "commit": head}

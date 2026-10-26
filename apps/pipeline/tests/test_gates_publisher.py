@@ -1,6 +1,6 @@
 from pipeline.tools import gates as G
+from pipeline.tools.ingest import is_public_url, scan_injection
 from pipeline.tools.publisher import renumber_citations
-from pipeline.tools.ingest import scan_injection, is_public_url
 
 
 def src(i, text="alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau", url="https://x.dev/a"):

@@ -1,7 +1,10 @@
-import os, subprocess, sqlite3
-from pathlib import Path
+import os
+import sqlite3
+import subprocess
+
 import pytest
 from langgraph.checkpoint.sqlite import SqliteSaver
+
 from pipeline.config import Settings
 
 GIT_ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
@@ -34,7 +37,8 @@ def settings(tmp_path, site):
     voice = tmp_path / "voice.md"; voice.write_text("be direct")
     banned = tmp_path / "banned.txt"; banned.write_text("game-changer\n")
     return Settings(_env_file=None, admin_token="tok", data_dir=tmp_path / "data", voice_file=voice, banned_file=banned,
-                    site_repo_path=site[0], publish_mode="git", git_branch="main", checkpoint_outline=True)
+                    site_repo_path=site[0], site_base_url="http://test", publish_mode="git", git_branch="main",
+                    openrouter_api_key="", checkpoint_plan=True)
 
 
 @pytest.fixture

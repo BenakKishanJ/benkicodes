@@ -1,9 +1,13 @@
 """Fetching and cleaning source material. Everything here treats input as untrusted."""
 from __future__ import annotations
-import ipaddress, re, socket
+
+import ipaddress
+import re
+import socket
 from functools import lru_cache
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
+
 import httpx
 
 UA = "BenKiContentBot/0.1 (+personal research assistant)"
@@ -15,7 +19,7 @@ INJECTION_PATTERNS = [
     r"you are now\b", r"new instructions?:", r"system prompt", r"<\|?im_start\|?>", r"\bassistant:\s", r"developer message",
     r"do not tell the user", r"reveal your (instructions|prompt)",
 ]
-_INJ = [re.compile(p, re.I) for p in INJECTION_PATTERNS]
+_INJ = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
 
 
 class IngestError(Exception):
@@ -53,7 +57,7 @@ def _robots(origin: str) -> RobotFileParser | None:
             return None
         rp.parse(r.text.splitlines())
         return rp
-    except Exception:
+    except (httpx.HTTPError, socket.gaierror, OSError, ValueError):  # robots.txt is optional
         return None
 
 
