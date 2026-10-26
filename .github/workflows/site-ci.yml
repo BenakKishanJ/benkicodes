@@ -1,0 +1,50 @@
+name: site CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/site/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - ".github/workflows/site-ci.yml"
+  pull_request:
+    paths:
+      - "apps/site/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - ".github/workflows/site-ci.yml"
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the schema package (JSON Schema emission)
+        run: pnpm schema
+      - name: Typecheck and templates (astro check)
+        run: pnpm --filter site check
+      - name: Build (staging noindex asserted by the guard)
+        run: pnpm --filter site build
+        env:
+          PUBLIC_SITE_INDEXING: off
+      - name: Guard: admin page must not ship to production
+        run: node scripts/check-dist.mjs
+        working-directory: apps/site
+        env:
+          PUBLIC_SITE_INDEXING: off
+      - name: Build with indexing on (guard verifies sitemap + meta)
+        run: pnpm --filter site exec astro build && node scripts/check-dist.mjs
+        working-directory: apps/site
+        env:
+          PUBLIC_SITE_INDEXING: on

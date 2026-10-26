@@ -3,7 +3,7 @@ import '@fontsource/press-start-2p';
 import '@fontsource-variable/martian-mono';
 import '@fontsource-variable/jetbrains-mono';
 import '../styles/global.css';
-import { siteConfig } from '../site.config';
+import { siteConfig, indexing } from '../site.config';
 import { themeIds, DEFAULT_THEME } from '../lib/themes';
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
@@ -30,6 +30,12 @@ const {
 const fullTitle = Astro.url.pathname === '/' ? `${siteConfig.name}: ${siteConfig.tagline}` : `${title} | ${siteConfig.name}`;
 const canonicalUrl = canonical ?? new URL(Astro.url.pathname, siteConfig.url).href;
 const imageUrl = new URL(image, siteConfig.url).href;
+// Staging rule: anything not explicitly indexable gets noindex, plus the
+// per-page noindex prop for draft/dev-only pages.
+const noindexEffective = !indexing.on || noindex;
+const robotsDirectives = noindexEffective
+  ? 'noindex, follow, max-image-preview:large'
+  : 'max-image-preview:large';
 
 // Runs before first paint so there is no flash of the wrong theme.
 const themeBoot = `(function(){var d=document.documentElement;try{var ids=${JSON.stringify(themeIds)};var t=localStorage.getItem('benki-theme');if(ids.indexOf(t)<0)t='${DEFAULT_THEME}';d.dataset.theme=t;d.dataset.fx=localStorage.getItem('benki-fx')||'on'}catch(e){d.dataset.theme='${DEFAULT_THEME}';d.dataset.fx='on'}d.classList.add('js')})();`;
@@ -50,7 +56,7 @@ const ld = [siteJsonLd, ...(Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] :
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalUrl} />
-    {noindex && <meta name="robots" content="noindex, follow" />}
+    <meta name="robots" content={robotsDirectives} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <link rel="alternate" type="application/rss+xml" title={`${siteConfig.name} RSS`} href="/rss.xml" />

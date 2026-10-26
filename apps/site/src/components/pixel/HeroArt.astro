@@ -5,7 +5,7 @@ import { waveArt, dragonArt, lotusArt } from '../../lib/art';
 const kinds: [string, string, string, string][] = [
   ['wave', waveArt(), 'A great wave curling in front of a mountain', 'kanagawa_wave.png'],
   ['dragon', dragonArt(), 'A dragon winding through clouds', 'kanagawa_dragon.png'],
-  ['lotus', lotusArt(), 'A lotus flower on a lily pad', 'kanagawa_lotus .png'],
+  ['lotus', lotusArt(), 'A lotus flower on a lily pad', 'kanagawa_lotus.png'],
 ];
 const hasPng = (file: string) => fs.existsSync(`public/art/${file}`);
 ---
@@ -13,7 +13,7 @@ const hasPng = (file: string) => fs.existsSync(`public/art/${file}`);
   {kinds.map(([k, svg, alt, png]) => (
     <figure class={`art art-${k}`}>
       {hasPng(png)
-        ? <img src={`/art/${png.replace(/ /g, '%20')}`} alt={alt} style="image-rendering:pixelated;width:100%;height:auto" />
+        ? <img src={`/art/${png}`} alt={alt} style="image-rendering:pixelated;width:100%;height:auto" />
         : <Fragment set:html={svg} />}
     </figure>
   ))}

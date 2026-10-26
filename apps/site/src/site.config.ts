@@ -1,5 +1,15 @@
-// Single source of truth for branding, nav, ads and analytics.
+// Single source of truth for branding, nav, ads, analytics and indexing.
 // Nothing brand-specific should be hard-coded elsewhere (keeps the template sellable).
+
+// Indexing is controlled by the PUBLIC_SITE_INDEXING env var at build time
+// ('on' | 'off'). Anything other than 'on' means the site stays unindexable:
+// a missing value must fail closed (PRD 02 §5.3, PRD 01 §5.2).
+const indexingRaw = String(import.meta.env.PUBLIC_SITE_INDEXING ?? '').toLowerCase();
+export const indexing =
+  {
+    on: indexingRaw === 'on',
+    off: indexingRaw !== 'on',
+  } as const;
 
 export const siteConfig = {
   name: 'BenKi Codes',

@@ -1,0 +1,25 @@
+name: pipeline CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/pipeline/**"
+      - ".github/workflows/pipeline-ci.yml"
+  pull_request:
+    paths:
+      - "apps/pipeline/**"
+      - ".github/workflows/pipeline-ci.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - working-directory: apps/pipeline
+        run: uv sync
+      - working-directory: apps/pipeline
+        run: uv run pytest -q

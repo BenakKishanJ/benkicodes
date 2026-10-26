@@ -1,0 +1,3 @@
+# Cloudflare Pages redirects.
+# Rule: a published slug is never changed without a 301 (PRD 02 §3).
+# None yet - the new site is the first deployment on benkicodes.pages.dev.
