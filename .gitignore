@@ -8,5 +8,6 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 .env
+/data/
 apps/pipeline/data/
 .DS_Store

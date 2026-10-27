@@ -92,9 +92,8 @@ def _prepare_worktree(repo: Path, wt: Path, branch: str, remote: str) -> None:
     _git(repo, "fetch", remote, branch)
     if wt.exists():
         out = _git(repo, "worktree", "list", "--porcelain")
-        blocks = out.split("\n\n")
-        known = any(wt.resolve().as_posix() in b for b in blocks)
-        if not known:
+        listed = {ln.split(" ", 1)[1] for ln in out.splitlines() if ln.startswith("worktree ")}
+        if wt.resolve().as_posix() not in listed:
             raise PublishError(f"{wt} exists but is not a registered git worktree; move or delete it")
         _git(wt, "reset", "--hard", f"{remote}/{branch}")
         _git(wt, "clean", "-fd")
@@ -111,6 +110,11 @@ def publish_post(content: str, slug: str, title: str, run_id: str, s: Settings) 
         raise PublishError(f"site repo not found at {repo}. Set SITE_REPO_PATH in .env")
     rel = f"{s.site_blog_dir}/{slug}.md"
     wt = s.worktree_dir
+    if not wt.is_absolute():
+        # git runs with cwd=repo, so a relative path must be anchored the same way —
+        # otherwise git registers the worktree under <repo>/<wt> while this code
+        # looks for <cwd>/<wt> and _prepare_worktree raises "not a registered worktree".
+        wt = repo / wt
     _prepare_worktree(repo, wt, s.git_branch, s.git_remote)
 
     target = wt / s.site_blog_dir / f"{slug}.md"

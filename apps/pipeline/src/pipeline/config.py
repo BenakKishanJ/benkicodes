@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     @property
     def worktree_dir(self) -> Path:
-        """Detached publish worktree, inside the site repo (see tools/publisher.py)."""
+        """Detached publish worktree. Relative paths are anchored to the site repo root by publisher.publish_post."""
         return self.data_dir / "publish-worktree"
 
     def ensure_dirs(self) -> None:
