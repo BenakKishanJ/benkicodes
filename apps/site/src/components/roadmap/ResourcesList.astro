@@ -1,0 +1,27 @@
+---
+import PixelIcon from '../pixel/PixelIcon.astro';
+interface Props {
+  heading?: string;
+  resources: { title: string; url: string; type: string; why: string; illustrated: boolean }[];
+}
+const { heading = 'further reading', resources } = Astro.props;
+---
+{resources.length > 0 && (
+  <section class="px p-6 sm:p-8" aria-labelledby="res-h">
+    <h2 id="res-h" class="t-3 mb-6">{heading}</h2>
+    <ul class="space-y-5 text-[13px]">
+      {resources.map((r) => (
+        <li>
+          <p class="flex flex-wrap items-baseline gap-3">
+            <span class="tag tag-plain">{r.type}</span>
+            <a class="underline decoration-dashed decoration-2 underline-offset-4 hover:text-accent" href={r.url} rel="noopener noreferrer" target="_blank">{r.title}</a>
+            {r.illustrated && (
+              <span class="flex items-center gap-1.5 text-[11px]" style="color:var(--yellow)"><PixelIcon name="gem" size={1} /> illustrated</span>
+            )}
+          </p>
+          <p class="meta mt-1.5">{r.why}</p>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}

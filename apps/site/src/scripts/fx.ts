@@ -179,9 +179,53 @@ function controls() {
   window.addEventListener('benki:theme', sync); window.addEventListener('benki:fx', sync); sync();
 }
 
+/* ---------- copy buttons ---------- */
+function copyText(text: string | undefined) {
+  if (!text) return false;
+  navigator.clipboard?.writeText(text.trim()).catch(() => {});
+  return true;
+}
+function flash(btn: HTMLElement, ok: boolean) {
+  const prev = btn.textContent;
+  btn.dataset.copied = ok ? 'ok' : 'err';
+  btn.textContent = ok ? 'copied!' : 'failed';
+  clearTimeout((btn as unknown as { _t?: number })._t);
+  (btn as unknown as { _t?: number })._t = window.setTimeout(() => {
+    btn.textContent = prev ?? 'copy';
+    delete btn.dataset.copied;
+  }, 1500);
+}
+/* Explicit buttons (panels) carry data-copy="::rev" to copy the .cmd sibling,
+   or a selector to copy any element. Prose <pre> blocks get an injected button. */
+function copy() {
+  $$('button[data-copy]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const sel = btn.dataset.copy;
+      const src = sel === '::rev' ? btn.closest('.cmd-row')?.querySelector('.cmd') : (sel ? document.querySelector(sel) : btn.previousElementSibling);
+      flash(btn, copyText((src as HTMLElement | null)?.textContent ?? undefined));
+    }));
+  $$('.prose pre').forEach((pre) => {
+    if (pre.querySelector('.copy-btn')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'copy-btn';
+    btn.textContent = 'copy';
+    btn.setAttribute('aria-label', 'Copy code to clipboard');
+    pre.appendChild(btn);
+    btn.addEventListener('click', () => flash(btn, copyText(pre.querySelector('code')?.textContent ?? pre.textContent ?? undefined)));
+  });
+}
+
+/* ---------- exercises: lesson h2/h3 blocks that start with "Exercise" get a panel ---------- */
+function exercises() {
+  $$('.prose h2, .prose h3').forEach((h) => {
+    if (/^Exercise\b/.test((h.textContent ?? '').trim())) h.setAttribute('data-ex', '');
+  });
+}
+
 /* ---------- init ---------- */
 function init() {
-  reveal(); dissolve(); parallax(); scrollbar(); secnav(); counters(); clock(); toc(); menu(); controls();
+  reveal(); dissolve(); parallax(); scrollbar(); secnav(); counters(); clock(); toc(); menu(); controls(); copy(); exercises();
   addEventListener('pointerdown', (e) => sparks(e.clientX, e.clientY));
 }
 init();

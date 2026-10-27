@@ -59,4 +59,42 @@ lastReviewed: 2026-10-26
 draft: true
 ---
 
-Draft-only seed module. Filtered from production like the rest of the `_seed-course` folder.
+Draft-only seed module. Filtered from production like the rest of the `_seed-course` folder — its job is to render every lesson block once so CI catches schema regressions before the flagship course lands.
+
+## Follow along with the repo
+
+Every part is one slice of the seed project. The **repo workbench** panel below the lesson lists the tags, the `git checkout` command, the commits, and the files this part adds — everything is plain text, straight from frontmatter.
+
+The flow is always the same: `start` tag → your edits → `end` tag. The panel builds its `compare tags on github` link from those two tags, so a broken `compareUrl` fails loudly in review, not in production.
+
+```python
+def part_tag(n: int) -> str:
+    # every part pins exactly one tag
+    return f"part-{n}"
+```
+
+*Figure 1: the tag helper. Nothing fancy — it exists so captions and checkouts can be exercised.*
+
+Astro content collections validate this frontmatter at build time [1](#sources-h). Inline source links point down to the sources list at the bottom of every part.
+
+## Exercise: pin a part number
+
+**Goal:** implement `part_tag` so every lesson can check out its own state of the repo.
+
+Acceptance criteria:
+
+- returns `part-N` for any `N >= 0`
+- raises `ValueError` for negative inputs
+
+<details>
+<summary>Hint 1 — where to start</summary>
+
+f-strings are all you need; the check is a single `if`.
+</details>
+
+<details>
+<summary>Hint 2 — the rejection test</summary>
+
+Assert on `ValueError` with `pytest.raises`, not `assert ...  is True`.
+</details>
+

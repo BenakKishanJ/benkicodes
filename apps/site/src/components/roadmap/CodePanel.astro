@@ -1,0 +1,54 @@
+---
+import PixelIcon from '../pixel/PixelIcon.astro';
+interface Props {
+  code: {
+    startTag: string;
+    endTag: string;
+    compareUrl: string;
+    treeUrl: string;
+    commits: { sha: string; message: string; url: string }[];
+    files: string[];
+  };
+  position: string; // e.g. "part 2 of 8" or "part 2"
+}
+const { code, position } = Astro.props;
+const checkout = `git checkout ${code.endTag}`;
+---
+<section class="px p-6 sm:p-8" aria-labelledby="code-h">
+  <div class="mb-6 flex flex-wrap items-baseline justify-between gap-3">
+    <h2 id="code-h" class="t-3">the repo at this part</h2>
+    <p class="meta flex items-center gap-2"><PixelIcon name="branch" size={1} /> {position}</p>
+  </div>
+
+  <p class="meta mb-4 flex flex-wrap items-center gap-3">
+    <span class="kbd">{code.startTag}</span>
+    <PixelIcon name="arrow-right" size={1} class="text-accent" />
+    <span class="kbd" style="color:var(--accent)">{code.endTag}</span>
+  </p>
+
+  <div class="cmd-row"><span class="cmd prompt">{checkout}</span><button type="button" class="copy-btn" data-copy="::rev" aria-label={`Copy ${checkout}`}>copy</button></div>
+
+  <p class="px-font mt-8 mb-4 text-[10px] text-muted">commits in this part</p>
+  <ul class="space-y-3 text-[12px]">
+    {code.commits.map((c) => (
+      <li class="flex flex-wrap items-baseline gap-3">
+        <a href={c.url} rel="noopener noreferrer" target="_blank" class="mono-kbd">{c.sha.slice(0, 7)}</a>
+        <span class="font-mono">{c.message}</span>
+      </li>
+    ))}
+  </ul>
+
+  {code.files.length > 0 && (
+    <div class="mt-8">
+      <p class="px-font mb-4 text-[10px] text-muted">what we add in this part</p>
+      <ul class="space-y-2 text-[12px]">
+        {code.files.map((f) => <li class="flex items-baseline gap-3"><span class="text-accent" aria-hidden="true">+</span><span class="font-mono">{f}</span></li>)}
+      </ul>
+    </div>
+  )}
+
+  <p class="meta mt-8 flex flex-wrap gap-x-8 gap-y-2">
+    <a href={code.compareUrl} rel="noopener noreferrer" target="_blank" class="underline decoration-dashed decoration-2 underline-offset-4 hover:text-accent">compare tags on github</a>
+    <a href={code.treeUrl} rel="noopener noreferrer" target="_blank" class="underline decoration-dashed decoration-2 underline-offset-4 hover:text-accent">browse the tree</a>
+  </p>
+</section>

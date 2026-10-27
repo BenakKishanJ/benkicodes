@@ -1,0 +1,19 @@
+---
+import PixelIcon from '../pixel/PixelIcon.astro';
+interface Props { items: { title: string; url: string; author?: string; note?: string }[] }
+const { items } = Astro.props;
+---
+{items.length > 0 && (
+  <div class="px p-7" style="--sh:var(--accent2);--o:8px">
+    <p class="px-font mb-5 flex items-center gap-3 text-[10px] text-muted"><PixelIcon name="star" size={1} class="text-accent2" /> stand on shoulders</p>
+    <ul class="space-y-5 text-[13px]">
+      {items.map((i) => (
+        <li>
+          <a class="underline decoration-dashed decoration-2 underline-offset-4 hover:text-accent" href={i.url} rel="noopener noreferrer" target="_blank">{i.title}</a>
+          {i.author && <span class="text-muted"> · {i.author}</span>}
+          {i.note && <p class="meta mt-1.5">{i.note}</p>}
+        </li>
+      ))}
+    </ul>
+  </div>
+)}

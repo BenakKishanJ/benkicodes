@@ -31,4 +31,6 @@ draft: true
 featured: false
 ---
 
-Nothing to read here yet: this seed keeps the course schema exercised in CI and dev. It is filtered out of production.
+Draft seed roadmap: it exists so the hands-on course schema, the hub panels (project, planned parts, inspired-by), and the lesson blocks (workbench, captions, exercises, hints, sources) all get exercised in CI. Everything under `_seed-course/` is excluded from production builds.
+
+> Build it, don't just read it — every roadmap ships with a repo, git tags per part, and quizzes that gate progress.

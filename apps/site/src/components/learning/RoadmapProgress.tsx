@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { readProgress, exportProgress, importProgress, type ProgressStore } from '../../lib/progress';
+import { SPRITES, spriteRects } from '../../lib/sprites';
+
+const LOCK = spriteRects(SPRITES.lock);
 
 interface Mod { slug: string; title: string; order: number; minutes: number }
-interface Props { roadmap: string; modules: Mod[] }
+interface Planned { slug: string; title: string; minutes: number }
+interface Props { roadmap: string; modules: Mod[]; planned?: Planned[] }
 
-export default function RoadmapProgress({ roadmap, modules }: Props) {
+export default function RoadmapProgress({ roadmap, modules, planned = [] }: Props) {
   const [store, setStore] = useState<ProgressStore>({ quizzes: {} });
 
   useEffect(() => {
@@ -47,9 +51,12 @@ export default function RoadmapProgress({ roadmap, modules }: Props) {
           <span>{done}/{modules.length} modules · {pct}%</span>
         </div>
         <div className="seg-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Roadmap progress">
-          {modules.map((m, i) => <i key={m.slug} className={stateOf(m.slug) === 'done' ? 'on' : ''} style={{ ['--i' as string]: i }} />)}
-        </div>
+        {modules.map((m, i) => <i key={m.slug} className={stateOf(m.slug) === 'done' ? 'on' : ''} style={{ ['--i' as string]: i }} />)}
       </div>
+      {planned.length > 0 && (
+        <p className="mt-3 text-[12px] text-muted">{planned.length} more part{planned.length !== 1 ? 's' : ''} planned</p>
+      )}
+    </div>
 
       <ol className="track">
         {modules.map((m, i) => {
@@ -70,6 +77,18 @@ export default function RoadmapProgress({ roadmap, modules }: Props) {
             </li>
           );
         })}
+
+        {planned.map((p) => (
+          <li key={p.slug} data-state="planned">
+            <span className="node" aria-hidden="true">
+              <svg width={14} height={16} viewBox="0 0 7 8" fill="currentColor" shape-rendering="crispEdges" dangerouslySetInnerHTML={{ __html: LOCK }} />
+            </span>
+            <span className="block">
+              <span className="t-3">{p.title}</span>
+              <span className="mt-2 block text-[12px] text-muted">~{p.minutes} min · <span className="soon">coming soon</span></span>
+            </span>
+          </li>
+        ))}
       </ol>
 
       <div className="mt-14 flex flex-wrap gap-4">

@@ -1,0 +1,37 @@
+---
+import TerminalWindow from '../pixel/TerminalWindow.astro';
+import PixelIcon from '../pixel/PixelIcon.astro';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props { project: CollectionEntry<'roadmaps'>['data']['project'] }
+const { project } = Astro.props;
+const repoName = project.repo.split('/').slice(-2).join('/');
+const cloneCmd = `git clone ${project.repo} && cd ${repoName.split('/')[1]}`;
+---
+<div class="px p-7 sm:p-9 flex h-full flex-col" style="--sh:var(--accent);--o:10px">
+  <p class="px-font mb-5 text-[10px] text-muted">the project you build</p>
+  <p class="text-[14px] leading-[1.9]">{project.summary}</p>
+
+  {project.stack.length > 0 && (
+    <p class="mt-6 flex flex-wrap gap-2.5">
+      {project.stack.map((s) => <span class="tag tag-plain">{s}</span>)}
+    </p>
+  )}
+
+  <div class="mt-7">
+    <TerminalWindow title="follow along" bodyClass="p-4 sm:p-5">
+      <div class="cmd-row"><span class="cmd prompt">{cloneCmd}</span><button type="button" class="copy-btn" data-copy="::rev" aria-label={`Copy clone command for ${repoName}`}>copy</button></div>
+      <div class="cmd-row"><span class="cmd text-muted"># every part pins a git tag — each lesson has its checkout command</span></div>
+      <div class="cmd-row"><span class="cmd prompt">git checkout part-N</span><button type="button" class="copy-btn" data-copy="::rev" aria-label="Copy checkout command">copy</button></div>
+    </TerminalWindow>
+  </div>
+
+  <p class="meta mt-6 flex flex-wrap items-center gap-x-6 gap-y-2">
+    <span class="flex items-center gap-2"><PixelIcon name="branch" size={1} /> {project.defaultBranch}</span>
+    {project.license && <span>license: {project.license}</span>}
+  </p>
+  <p class="mt-4 mt-auto flex flex-wrap gap-4 pt-4">
+    <a class="btn btn-sm" href={project.repo} rel="noopener noreferrer" target="_blank">view repo <PixelIcon name="arrow-right" size={2} /></a>
+    {project.template && <a class="btn btn-sm" href={`${project.repo}/generate`} rel="noopener noreferrer" target="_blank">use this template</a>}
+  </p>
+</div>
