@@ -47,6 +47,8 @@ export interface CheckView {
 
 export interface GateView { id: string; level: string; status: string; detail?: string }
 
+export interface EventView { t: string; node: string; msg: string; level: string }
+
 export interface RunView {
   id: string;
   topic: string;
@@ -55,7 +57,7 @@ export interface RunView {
   created_at: string;
   updated_at: string;
   pending: { type: string } | null;
-  events: string[];
+  events: EventView[];
   sources: SourceView[];
   plan: { angle?: string; working_title?: string; sections?: { heading: string; goal: string }[] } | null;
   plan_feedback: string[];

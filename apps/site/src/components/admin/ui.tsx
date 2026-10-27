@@ -1,6 +1,18 @@
 // Tiny shared pieces for the admin suite (kept in one place, local styles only).
+import { Component, type ReactNode } from 'react';
 import { statusColor } from './api';
-import type { ReactNode } from 'react';
+
+/** Keeps any screen-level render bug from blanking the whole console. */
+export class ErrorBoundary extends Component<{ children: ReactNode }, { err: unknown }> {
+  state = { err: null as unknown };
+  static getDerivedStateFromError(err: unknown) { return { err }; }
+  render() {
+    if (this.state.err !== null) {
+      return <ErrBox err={this.state.err} label="reload screen" onRetry={() => this.setState({ err: null })} />;
+    }
+    return this.props.children;
+  }
+}
 
 export function Chip({ status, children }: { status?: string; children: ReactNode }) {
   const color = status ? statusColor(status) : 'var(--muted)';

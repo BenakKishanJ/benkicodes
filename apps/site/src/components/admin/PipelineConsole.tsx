@@ -2,7 +2,7 @@
 // Runs / Settings / Library screens. One React island at /admin/ (dev-only).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, API_DEFAULT, busy, clearToken, api, fmtTs, getBase, getToken, needsDecision, setBase, setToken, usd } from './api';
-import { Chip, ErrBox, Field, inputCls } from './ui';
+import { Chip, ErrBox, ErrorBoundary, Field, inputCls } from './ui';
 import BlogReview from './blog/BlogReview';
 import Library from './library/Library';
 import NewBlogForm from './runs/NewBlogForm';
@@ -60,9 +60,17 @@ export default function PipelineConsole() {
     }
   }
 
+  // Restore a stored session on reload: reuse the saved base+token silently.
+  useEffect(() => {
+    if (!getToken()) return;
+    void (async () => {
+      try { await loadAll(); setPhase('ready'); }
+      catch (e) { if (e instanceof ApiError && e.status === 401) clearToken(); }
+    })();
+  }, [loadAll]);
+
   // Strip + run-list refresh: poll while any run is busy, slowly otherwise.
-  const anyBusy = runs.some((r) => busy(r.status));
-  const pollRef = useRef<number | undefined>(undefined);
+  const anyBusy = runs.some((r) => busy(r.status));  const pollRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (phase !== 'ready' || openRun) return;
     window.clearInterval(pollRef.current);
@@ -123,7 +131,11 @@ export default function PipelineConsole() {
         <button type="button" className="ml-auto btn btn-sm" onClick={() => { clearToken(); setTokenInput(''); setPhase('connect'); }}>disconnect</button>
       </nav>
 
-      {openRun && <BlogReview runId={openRun} onExit={() => { setOpenRun(null); onStatusChange(); }} onStatusChange={onStatusChange} />}
+      {openRun && (
+        <ErrorBoundary key={openRun}>
+          <BlogReview runId={openRun} onExit={() => { setOpenRun(null); onStatusChange(); }} onStatusChange={onStatusChange} />
+        </ErrorBoundary>
+      )}
 
       {!openRun && screen === 'runs' && (
         <div>

@@ -3,9 +3,29 @@
 // Dev-only: no paths in production builds and every component lives under
 // components/admin/, so nothing from here ships (PRD 02 §8.1–8.2).
 import type { GetStaticPaths } from 'astro';
+import { readFileSync } from 'node:fs';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PipelineConsole from '../../components/admin/PipelineConsole';
-export const getStaticPaths = (() => (import.meta.env.DEV ? [{ params: { slug: undefined } }] : [])) satisfies GetStaticPaths;
+
+// Dev-only screens (deep links work when the local pipeline is up; prod has no
+// admin at all — PRD 02 §8.1–8.2). The run ids are read straight from the
+// pipeline's .env token so /admin/runs/<id>/ deep links resolve in dev.
+export const getStaticPaths = (async () => {
+  if (!import.meta.env.DEV) return [];
+  const screens = [undefined, 'runs', 'settings', 'library'].map((slug) => ({ params: { slug } }));
+  try {
+    const env = readFileSync('../pipeline/.env', 'utf8');
+    const token = env.match(/^ADMIN_TOKEN=(.+)$/m)?.[1];
+    if (token) {
+      const res = await fetch('http://127.0.0.1:8787/runs', { headers: { 'X-Admin-Token': token } });
+      const runs: { id: string }[] = res.ok ? await res.json() : [];
+      return [...screens, ...runs.map((r) => ({ params: { slug: `runs/${r.id}` } }))];
+    }
+  } catch (e) { /* pipeline down: root screens still resolve */
+    console.error('[admin routes] deep-link setup failed:', e);
+  }
+  return screens;
+}) satisfies GetStaticPaths;
 ---
 <BaseLayout title="Pipeline admin" description="Local content pipeline console." noindex jsonLd={[]} snap="none">
   <section class="sec sec-first tone-a grid-bg" style="padding-block:clamp(2rem,7vh,5rem)">

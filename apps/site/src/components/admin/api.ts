@@ -1,6 +1,6 @@
 // Thin fetch/SSE client for the local pipeline API. Token lives in localStorage
 // only; every authed request carries X-Admin-Token (PRD 02 §8.1).
-import type { LibraryItem, ModelEntry, RunItem, RunView, SettingsView } from './types';
+import type { EventView, LibraryItem, ModelEntry, RunItem, RunView, SettingsView } from './types';
 
 const TOKEN_KEY = 'benki-admin-token';
 const BASE_KEY = 'benki-admin-api';
@@ -67,7 +67,7 @@ export const api = {
 
 export interface StreamFrame {
   status: string;
-  events: string[];
+  events: EventView[];
   spent: number;
   pending: string | null;
 }
@@ -105,6 +105,7 @@ export function streamRun(
         const eventName = /^event:\s*(.+)$/m.exec(chunk)?.[1] ?? 'message';
         const data = /^data:\s*(.*)$/m.exec(chunk)?.[1];
         if (eventName === 'done') { onDone(); return; }
+        if (eventName === 'gone') { onDone(); return; } // run was deleted
         if (!data) continue;
         if (eventName === 'transition') continue; // the data frame already carries status
         try { onFrame(JSON.parse(data) as StreamFrame); } catch { /* partial frame */ }

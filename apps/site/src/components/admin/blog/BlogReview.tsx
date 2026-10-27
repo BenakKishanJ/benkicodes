@@ -1,7 +1,7 @@
 // Blog review: live activity, plan checkpoint, and the tabbed draft review with
 // approve / request changes / reject + budget and retry controls (03-prd §9).
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, busy, fmtTs, streamRun, terminal, usd, type StreamFrame } from '../api';
+import { api, fmtTs, streamRun, terminal, usd, type StreamFrame } from '../api';
 import { Chip, ConfirmButton, ErrBox, Field, inputCls, Panel, taCls } from '../ui';
 import type { PlanDecision, ReviewDecision, RunView, SeoView } from '../types';
 
@@ -41,18 +41,25 @@ export default function BlogReview({ runId, onExit, onStatusChange }: {
   useEffect(() => { setRun(null); setTab('draft'); setComments(''); setEditedMd({ on: false, text: '' }); setSeoEdit(null); setForce(false); setConfirming(false); refresh(); }, [runId, refresh]);
 
   // Live view: SSE while the run works; poll fallback if the stream fails.
-  const needStream = !!run && !run.pending && !terminal(run.status) && busy(run.status);
+  // Live view: SSE while anything non-decision/non-terminal is happening —
+  // not just busy() statuses (transitional ones like "gating" would strand it).
+  const needStream = !!run && !run.pending && !terminal(run.status);
   useEffect(() => {
     if (!needStream) return;
     let cancelled = false;
     let poll: number | undefined;
+    let first = true;
     const cancel = streamRun(
       runId,
       (f: StreamFrame) => {
+        // First frame replays the full history (server starts sent_n at 0);
+        // later frames carry only fresh events.
+        const wasFirst = first;
+        first = false;
         setRun((r) => (r ? {
           ...r,
           status: f.status,
-          events: [...r.events, ...f.events],
+          events: wasFirst ? f.events : [...r.events, ...f.events],
           usage: r.usage.budget ? { ...r.usage, budget: { ...r.usage.budget, spent: f.spent } } : r.usage,
         } : r));
       },
@@ -362,14 +369,19 @@ export default function BlogReview({ runId, onExit, onStatusChange }: {
         </>
       )}
 
-      {run && !run.pending && !terminal(st) && !busy(st) && st !== 'paused_budget' && st !== 'failed' && (
+      {/* only while nothing is live: stream and poll are both off */}
+      {run && !needStream && !run.pending && !terminal(st) && (
         <Panel title="Waiting" id="waiting-h"><p className="meta">Status “{st}” — nothing to decide right now. <ConfirmButton onConfirm={refresh} question="Refresh this run now?">refresh</ConfirmButton></p></Panel>
       )}
 
       {run && (
         <Panel title="Activity & calls" id="activity-h">
-          <ol className="max-h-72 space-y-1.5 overflow-auto font-mono text-[11px] text-muted">
-            {run.events.map((e, i) => <li key={i} style={i === run.events.length - 1 ? { color: 'var(--fg)' } : undefined}>▸ {e}</li>)}
+          <ol className="max-h-72 space-y-1.5 overflow-auto font-mono text-[11px]">
+            {run.events.map((e, i) => (
+              <li key={`${e.t}-${i}`} style={e.level === 'warn' ? { color: 'var(--yellow)' } : e.level === 'err' || e.level === 'error' ? { color: 'var(--red)' } : i === run.events.length - 1 ? { color: 'var(--fg)' } : { color: 'var(--muted)' }}>
+                <span className="text-muted">{e.t.slice(11, 19)}</span> <span style={{ color: 'var(--accent)' }}>[{e.node}]</span> {e.msg}
+              </li>
+            ))}
           </ol>
           <details className="mt-4">
             <summary className="px-font text-[10px] text-muted">recent model calls ({run.calls.length})</summary>
