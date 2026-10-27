@@ -62,8 +62,8 @@ const self = moduleSlug(mod.id);
 
   <section class="sec sec-pad-b tone-b grid-bg" data-title="lesson">
     <div class="wrap grid gap-14 lg:grid-cols-12">
-      <aside class="lg:col-span-3">
-        <div class="lg:sticky lg:top-28 space-y-12">
+      <aside class="lg:col-span-3 min-w-0">
+        <div class="lg:sticky lg:top-28 space-y-12 min-w-0">
           <TOC headings={headings} />
           <nav aria-label="Course parts" data-toc class="text-[12px]">
             <p class="px-font mb-4 text-[10px] text-muted">all parts</p>
@@ -84,7 +84,7 @@ const self = moduleSlug(mod.id);
           </nav>
         </div>
       </aside>
-      <div class="lg:col-span-8 lg:col-start-5">
+      <div class="lg:col-span-8 lg:col-start-5 min-w-0">
         <div class="prose"><Content /></div>
         <div class="mt-14"><CodePanel code={data.code} position={position} /></div>
         <AdSlot slot="in-article" />
