@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PixelEdge from '../components/pixel/PixelEdge.astro';
+import { siteConfig } from '../site.config';
+
+const year = new Date().getFullYear();
+---
+<BaseLayout title="Terms & disclaimer" description="Terms of use for this site: the educational disclaimer, AI-assistance disclosure, code-sample licensing and limits of liability.">
+  <section class="sec sec-first sec-pad-b tone-a grid-bg" data-title="man page">
+    <div class="wrap relative z-10">
+      <p class="meta flex justify-between gap-4" aria-hidden="true"><span>TERMS(7)</span><span class="hidden sm:inline">{siteConfig.name} Manual</span><span>TERMS(7)</span></p>
+      <h1 class="t-1 mt-14" data-reveal>terms &amp; disclaimer</h1>
+      <dl class="mt-12 max-w-2xl space-y-6 text-[13px]" data-reveal>
+        <div><dt class="px-font mb-2 text-[10px] text-accent">NAME</dt><dd class="pl-6">terms — what you may do with this site, what you may rely on it for, and where responsibility stops</dd></div>
+        <div><dt class="px-font mb-2 text-[10px] text-accent">UPDATED</dt><dd class="pl-6">October 2026</dd></div>
+      </dl>
+    </div>
+    <PixelEdge to="b" seed={62} />
+  </section>
+  <section class="sec tone-b grid-bg" data-title="read" style="padding-top:clamp(4rem,9vh,7rem)">
+    <div class="wrap"><div class="prose">
+      <p>By using {siteConfig.name} ({siteConfig.url}) you agree to the terms below. They are short on purpose: plain rules beat legalese.</p>
+      <h2>Educational content — not professional advice</h2>
+      <p>Everything here — articles, roadmaps, quizzes, code — is educational material. It is not professional, legal, financial or security advice, and following it does not create any advisory relationship. Be especially careful with commands or configuration from tutorials: what worked on my machine can go wrong on yours. Read the docs of the tools you use, test in a safe environment, and never paste commands you don't understand.</p>
+      <h2>How the content is made</h2>
+      <p>Articles are drafted with an AI pipeline I built, from sources I choose and list, then reviewed and edited by me before publication. AI makes mistakes and mine mostly catches them — but if one gets through, a correction is the fix, not a scandal. The full process is on the <a href="/editorial-policy/">editorial policy</a> page.</p>
+      <h2>No warranty</h2>
+      <p>The site is provided “as is”, without warranty of any kind. Content is reviewed at publication time and may become outdated without notice. I don't guarantee that the site or its feeds will be available, uninterrupted or error-free.</p>
+      <h2>Code samples</h2>
+      <p>Small snippets on this site and in its repos you may use freely; attribution is appreciated but not required. Larger projects carry their own licences — check the repository you clone.</p>
+      <h2>External links</h2>
+      <p>Articles link to third-party documentation, papers, videos and services. I'm not responsible for their content, accuracy or availability, and a link is not an endorsement.</p>
+      <h2>Your use of AI tools</h2>
+      <p>Roadmaps assume you write code yourself. Submitting AI-generated answers to the quizzes or copying AI-written code into the build-alongs defeats the point — and will quietly leave you exactly as confused as when you started.</p>
+      <h2>Intellectual property</h2>
+      <p>Site design and written articles are © {year} {siteConfig.author.name}. Trademarks and product names belong to their respective owners; their use here is referential, under fair use.</p>
+      <h2>Changes</h2>
+      <p>These terms may change; the version at the top will always match the current text. Questions? <a href="/contact/">Contact page</a>.</p>
+    </div></div>
+  </section>
+</BaseLayout>

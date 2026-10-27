@@ -11,6 +11,7 @@ export const indexing =
     off: indexingRaw !== 'on',
   } as const;
 
+// Placeholder contact details — replace before launch.
 export const siteConfig = {
   name: 'BenKi Codes',
   shortName: 'benki',
@@ -35,6 +36,8 @@ export const siteConfig = {
   footerLinks: [
     { label: 'editorial', href: '/editorial-policy/' },
     { label: 'privacy', href: '/privacy/' },
+    { label: 'terms', href: '/terms/' },
+    { label: 'contact', href: '/contact/' },
     { label: 'rss', href: '/rss.xml' },
   ],
   aiDisclosure:

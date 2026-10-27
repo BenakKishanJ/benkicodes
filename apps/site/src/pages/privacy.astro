@@ -17,13 +17,17 @@ import { siteConfig } from '../site.config';
   </section>
   <section class="sec tone-b grid-bg" data-title="read" style="padding-top:clamp(4rem,9vh,7rem)">
     <div class="wrap"><div class="prose">
-      <p><em>Template: review with a legal professional and update it to match the services you actually enable (analytics, ads, newsletter).</em></p>
+      <p>Short version: no cookies, no third-party scripts, no accounts. What little is saved stays in your browser.</p>
       <h2>What is stored in your browser</h2>
-      <p>This site saves your theme choice, your effects preference and your roadmap quiz progress in your browser's local storage. This data never leaves your device unless you export it yourself.</p>
+      <p>This site saves your theme choice, your effects preference and your roadmap quiz progress in your browser's local storage. This data never leaves your device unless you export it yourself. Clearing your browser storage removes all of it.</p>
+      <h2>What is not collected</h2>
+      <p>No cookies are set, no accounts exist, and nothing you type into the site is sent anywhere. Page requests do reach the hosting provider (Cloudflare Pages), which processes standard request logs as described in <a rel="noopener" href="https://www.cloudflare.com/trust-hub/">Cloudflare's trust hub</a>.</p>
       <h2>Analytics</h2>
-      <p>If analytics are enabled, the site uses a privacy-focused service that does not use cookies for tracking. Update this section with the provider you choose.</p>
+      <p>Cloudflare Web Analytics may be enabled, which is cookie-free and does not build individual profiles; it reports aggregate page views and referrers only. When enabled, no cookie banner is needed because there is nothing to consent to.</p>
       <h2>Advertising</h2>
-      <p>If ads are enabled, third-party vendors including Google may use cookies to serve ads based on prior visits. You can opt out of personalised advertising in Google's ad settings. Update this section when you enable ads.</p>
+      <p>If advertising is ever enabled it would require cookies, and this page (plus a consent banner) will be updated before that happens. Until then: none.</p>
+      <h2>Mail you send</h2>
+      <p>Mail sent to the contact address is used to reply and, for corrections, to improve the article. It is never added to a list or shared.</p>
       <h2>Contact</h2>
       <p>Questions about privacy: <a href={`mailto:${siteConfig.author.email}`}>{siteConfig.author.email}</a>.</p>
     </div></div>

@@ -5,7 +5,7 @@ const { labels = false } = Astro.props;
 ---
 <div role="group" aria-label="Theme" class="flex items-center gap-3">
   {themes.map((t) => (
-    <button type="button" data-theme-set={t.id} aria-pressed="false" title={`${t.label}: ${t.blurb}`} class="flex items-center gap-2 text-xs">
+    <button type="button" data-theme-set={t.id} aria-pressed="false" title={`${t.label}: ${t.blurb}`} class="tbtn flex items-center gap-2 text-xs">
       <span class="swatch" aria-hidden="true">
         <i style={`background:${t.bg}`}></i><i style={`background:${t.alt}`}></i><i style={`background:${t.accent}`}></i><i style={`background:${t.accent2}`}></i>
       </span>

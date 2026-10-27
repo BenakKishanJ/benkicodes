@@ -1,0 +1,61 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PixelEdge from '../components/pixel/PixelEdge.astro';
+import PixelIcon from '../components/pixel/PixelIcon.astro';
+import { siteConfig } from '../site.config';
+
+// NOTE: placeholder contacts — replace in site.config.ts before launch.
+const channels = [
+  { icon: 'mail', label: 'email', value: siteConfig.author.email, href: `mailto:${siteConfig.author.email}`, hint: 'for anything private: corrections, work, permission requests' },
+  { icon: 'branch', label: 'github', value: `${siteConfig.author.github.replace(/^https?:\/\/github\.com\//, '')} on GitHub`, href: siteConfig.author.github, hint: 'issues and pull requests for repos are usually answered fastest here' },
+  { icon: 'user', label: 'linkedin', value: 'connect there', href: siteConfig.author.linkedin, hint: 'recruiters and professional mail — say you found me on the site' },
+];
+
+const person = {
+  '@context': 'https://schema.org', '@type': 'Person', name: siteConfig.author.name,
+  url: `${siteConfig.url}/contact/`, sameAs: [siteConfig.author.github, siteConfig.author.linkedin],
+};
+---
+<BaseLayout title="Contact" description="How to reach the author: email for corrections and collaboration, GitHub for code, LinkedIn for professional mail." jsonLd={person}>
+  <section class="sec sec-first sec-pad-b tone-a grid-bg" data-title="man page">
+    <div class="wrap relative z-10">
+      <p class="meta flex justify-between gap-4" aria-hidden="true"><span>CONTACT(1)</span><span class="hidden sm:inline">{siteConfig.name} Manual</span><span>CONTACT(1)</span></p>
+      <h1 class="t-1 mt-14" data-reveal>contact</h1>
+      <dl class="mt-12 max-w-2xl space-y-6 text-[13px]" data-reveal>
+        <div><dt class="px-font mb-2 text-[10px] text-accent">SYNOPSIS</dt><dd class="pl-6">reach {siteConfig.author.name} directly — no forms, no waitlists</dd></div>
+        <div><dt class="px-font mb-2 text-[10px] text-accent">OPTIONS</dt><dd class="pl-6">pick the channel that fits; mail gets a reply within a few days</dd></div>
+      </dl>
+    </div>
+    <PixelEdge to="b" seed={63} />
+  </section>
+  <section class="sec tone-b grid-bg" data-title="channels" style="padding-top:clamp(4rem,9vh,7rem)">
+    <div class="wrap">
+      <div class="grid gap-10 md:grid-cols-3">
+        {channels.map((c) => (
+          <a href={c.href} rel={c.icon === 'mail' ? undefined : 'noopener'} class="px px-hover flex flex-col gap-6 p-7" data-reveal>
+            <span class="text-accent"><PixelIcon name={c.icon} size={4} /></span>
+            <span class="t-3">{c.label}</span>
+            <span class="text-[13px] text-muted break-all">{c.value}</span>
+            <span class="meta max-w-[32ch]">{c.hint}</span>
+          </a>
+        ))}
+      </div>
+      <div class="prose mt-20 max-w-2xl">
+        <h2>What to write about</h2>
+        <ul>
+          <li><strong>Corrections</strong> — a factual or outdated claim in a post; include the link (the article footer links here too).</li>
+          <li><strong>Collaboration</strong> — guest posts, course suggestions, speaking, teaching.</li>
+          <li><strong>Feedback</strong> — roadmaps or quizzes that helped, or that missed the mark.</li>
+        </ul>
+        <h2>What not to write</h2>
+        <p>Generic link-exchange and guest-post spam, and prompt-generated “business proposals”. Real mail gets an answer; template mail doesn't. Code questions belong in the repository's issues where the answers can help everyone — typing them here just makes them private.</p>
+      </div>
+    </div>
+    <PixelEdge to="a" seed={53} />
+  </section>
+  <section class="sec tone-a grid-bg">
+    <div class="wrap prose max-w-2xl py-6">
+      <p><em>Privacy note: mail you send is used to answer you and (for corrections) to improve the article — never to build a list.</em></p>
+    </div>
+  </section>
+</BaseLayout>

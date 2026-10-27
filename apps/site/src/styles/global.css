@@ -29,7 +29,7 @@
   --a-accent:#7E9CD8; --a-accent2:#957FB8;
   --b-bg:#DCD7BA; --b-surface:#E7E1C2; --b-surface2:#CEC8A6; --b-line:#54546D; --b-fg:#1F1F28; --b-muted:#54546D;
   --b-blue:#4D699B; --b-green:#6F894E; --b-pink:#B35B79; --b-yellow:#77713F; --b-violet:#624C83; --b-orange:#CC6D00; --b-red:#C84053; --b-aqua:#597B75;
-  --b-accent:#4D699B; --b-accent2:#624C83;
+  --b-accent:#415984; --b-accent2:#624C83;
 }
 :root[data-theme="dragon"] {
   --a-bg:#181616; --a-surface:#282727; --a-surface2:#393836; --a-line:#625E5A; --a-fg:#C5C9C5; --a-muted:#A6A69C;
@@ -37,15 +37,15 @@
   --a-accent:#87A987; --a-accent2:#C4746E;
   --b-bg:#C5C9C5; --b-surface:#D3D6D1; --b-surface2:#B4B8B3; --b-line:#393836; --b-fg:#181616; --b-muted:#43443F;
   --b-blue:#4D699B; --b-green:#6F894E; --b-pink:#B35B79; --b-yellow:#77713F; --b-violet:#624C83; --b-orange:#CC6D00; --b-red:#C84053; --b-aqua:#597B75;
-  --b-accent:#6F894E; --b-accent2:#C84053;
+  --b-accent:#485933; --b-accent2:#8C2D3A;
 }
 :root[data-theme="lotus"] {
-  --a-bg:#F2ECBC; --a-surface:#E5DDB0; --a-surface2:#DCD5AC; --a-line:#545464; --a-fg:#545464; --a-muted:#716E61;
-  --a-blue:#4D699B; --a-green:#6F894E; --a-pink:#B35B79; --a-yellow:#77713F; --a-violet:#624C83; --a-orange:#CC6D00; --a-red:#C84053; --a-aqua:#597B75;
-  --a-accent:#B35B79; --a-accent2:#4D699B;
-  --b-bg:#545464; --b-surface:#5F5F72; --b-surface2:#6B6B80; --b-line:#A6A69C; --b-fg:#F2ECBC; --b-muted:#C8C093;
+  --a-bg:#F2ECBC; --a-surface:#E5DDB0; --a-surface2:#DCD5AC; --a-line:#545464; --a-fg:#545464; --a-muted:#6B685C;
+  --a-blue:#4D699B; --a-green:#576D3C; --a-pink:#B35B79; --a-yellow:#675F33; --a-violet:#624C83; --a-orange:#CC6D00; --a-red:#B33246; --a-aqua:#597B75;
+  --a-accent:#9E4767; --a-accent2:#4D699B;
+  --b-bg:#545464; --b-surface:#5F5F72; --b-surface2:#6B6B80; --b-line:#A6A69C; --b-fg:#F2ECBC; --b-muted:#D6CFA3;
   --b-blue:#7E9CD8; --b-green:#98BB6C; --b-pink:#D27E99; --b-yellow:#E6C384; --b-violet:#957FB8; --b-orange:#FFA066; --b-red:#E46876; --b-aqua:#7AA89F;
-  --b-accent:#D27E99; --b-accent2:#7E9CD8;
+  --b-accent:#EBC5D1; --b-accent2:#BECEEC;
 }
 
 @layer base {
@@ -144,6 +144,7 @@
   .meta { font-size: 12px; line-height: 1.5; color: var(--muted); }
   .px-font { font-family: var(--font-pixel); }
   .prompt::before { content: '$ '; color: var(--accent); }
+  .prompt a { display: inline-block; padding: 5px 0; line-height: 18px; }
 
   /* ───────────────────────── pixel primitives ───────────────────────── */
   .px {
@@ -215,6 +216,9 @@
   .brand { display: flex; align-items: center; gap: 10px; font-size: 13px; white-space: nowrap; }
   .brand svg { transition: transform .2s steps(3); }
   .brand:hover svg { transform: translateY(-4px) rotate(-4deg); }
+  .flinks li + li { margin-top: 4px; }
+  .flinks a { display: inline-block; padding: 3px 0; line-height: 20px; }
+  .tbtn { min-height: 24px; padding: 2px 2px; }
   .ws { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 12px; font-size: 12px; color: var(--muted); border-bottom: 4px solid transparent; margin-bottom: -2px; transition: color .1s steps(2); }
   .ws .n { display: grid; place-items: center; width: 22px; height: 22px; border: 2px solid currentColor; font-family: var(--font-pixel); font-size: 9px; }
   .ws:hover { color: var(--fg); } .ws:hover .n { animation: hop .3s steps(3); }
@@ -232,7 +236,7 @@
 
   #secnav { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 40; display: none; flex-direction: column; gap: 14px; color: #fff; mix-blend-mode: difference; }
   @media (min-width: 1100px) { #secnav:not([hidden]) { display: flex; } }
-  .secdot { position: relative; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+  .secdot { position: relative; display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 9px; margin: -9px; }
   .secdot i { width: 10px; height: 10px; border: 2px solid currentColor; transition: all .12s steps(2); }
   .secdot[data-on] i { background: currentColor; transform: scale(1.4); }
   .secdot .lbl { position: absolute; right: 24px; font-size: 11px; white-space: nowrap; opacity: 0; transform: translateX(8px); transition: all .15s steps(3); pointer-events: none; }

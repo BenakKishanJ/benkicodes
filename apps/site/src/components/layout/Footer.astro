@@ -19,15 +19,15 @@ const social = [
       </div>
       <nav class="md:col-span-2" aria-label="Pages">
         <p class="meta mb-4">pages</p>
-        <ul class="space-y-2 text-[13px]">{siteConfig.nav.map((n) => <li><a class="hover:text-accent" href={n.href}>{n.label}</a></li>)}</ul>
+        <ul class="flinks text-[13px]">{siteConfig.nav.map((n) => <li><a class="hover:text-accent" href={n.href}>{n.label}</a></li>)}</ul>
       </nav>
       <nav class="md:col-span-2" aria-label="More">
         <p class="meta mb-4">more</p>
-        <ul class="space-y-2 text-[13px]">{siteConfig.footerLinks.map((l) => <li><a class="hover:text-accent" href={l.href}>{l.label}</a></li>)}</ul>
+        <ul class="flinks text-[13px]">{siteConfig.footerLinks.map((l) => <li><a class="hover:text-accent" href={l.href}>{l.label}</a></li>)}</ul>
       </nav>
       <nav class="md:col-span-3" aria-label="Elsewhere">
         <p class="meta mb-4">elsewhere</p>
-        <ul class="space-y-2 text-[13px]">{social.map((l) => <li><a class="hover:text-accent" href={l.href} rel="me noopener">{l.label}</a></li>)}</ul>
+        <ul class="flinks text-[13px]">{social.map((l) => <li><a class="hover:text-accent" href={l.href} rel="me noopener">{l.label}</a></li>)}</ul>
         <p class="meta mb-3 mt-8">effects</p>
         <button type="button" class="btn btn-sm" data-fx-toggle>fx: <span data-fx-state>on</span></button>
       </nav>

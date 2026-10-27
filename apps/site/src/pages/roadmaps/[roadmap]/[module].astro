@@ -12,6 +12,7 @@ import Quiz from '../../../components/learning/Quiz';
 import AdSlot from '../../../components/ads/AdSlot.astro';
 import { getModules, getRoadmaps, roadmapSlug, moduleSlug } from '../../../lib/content';
 import { formatDate, isoDate } from '../../../lib/utils';
+import { siteConfig } from '../../../site.config';
 
 export const getStaticPaths = (async () => {
   const [modules, roadmaps] = await Promise.all([getModules(), getRoadmaps()]);
@@ -89,6 +90,7 @@ const self = moduleSlug(mod.id);
         <AdSlot slot="in-article" />
         <div class="mt-16"><ResourcesList resources={data.resources} /></div>
         <div class="mt-16"><SourcesList sources={data.sources.map((s) => ({ title: s.title, url: s.url, publisher: s.publisher, accessed: s.accessed }))} /></div>
+        <p class="meta mt-12 max-w-[68ch]">{siteConfig.aiDisclosure} <a class="underline decoration-dashed underline-offset-4" href="/editorial-policy/">How this site is made</a>. Spotted a mistake? <a class="underline decoration-dashed underline-offset-4" href="/contact/">Report an error</a>.</p>
       </div>
     </div>
     <PixelEdge to="a" seed={32} />
