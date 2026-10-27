@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && node scripts/check-dist.mjs",
+    "build": "astro build && node scripts/prune-admin.mjs && node scripts/check-dist.mjs",
     "preview": "astro preview",
     "check": "astro check",
     "sync": "astro sync",

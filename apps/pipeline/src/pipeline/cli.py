@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import secrets
 from pathlib import Path
 
@@ -20,6 +21,9 @@ def _ensure_token(env: Path) -> str:
         env.write_text("\n".join(lines) + "\n")
     else:
         env.write_text(text + ("\n" if text and not text.endswith("\n") else "") + f"ADMIN_TOKEN={token}\n")
+    # the process env wins over the .env file (load_dotenv ran at import time),
+    # so the generated token only takes effect once os.environ carries it too
+    os.environ["ADMIN_TOKEN"] = token
     get_settings.cache_clear()
     return token
 

@@ -1,0 +1,17 @@
+---
+// Admin island: talks to the local pipeline (127.0.0.1:8787) with X-Admin-Token.
+// Dev-only: no paths in production builds and every component lives under
+// components/admin/, so nothing from here ships (PRD 02 §8.1–8.2).
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PipelineConsole from '../../components/admin/PipelineConsole';
+export const getStaticPaths = (() => (import.meta.env.DEV ? [{ params: { slug: undefined } }] : [])) satisfies GetStaticPaths;
+---
+<BaseLayout title="Pipeline admin" description="Local content pipeline console." noindex jsonLd={[]} snap="none">
+  <section class="sec sec-first tone-a grid-bg" style="padding-block:clamp(2rem,7vh,5rem)">
+    <div class="wrap">
+      <h1 class="px-font text-[10px] text-muted mb-8">pipeline admin · local only</h1>
+      <PipelineConsole client:only="react" />
+    </div>
+  </section>
+</BaseLayout>
