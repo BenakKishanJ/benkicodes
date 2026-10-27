@@ -104,8 +104,9 @@ def build_blog_graph(gw: Gateway | None, s: Settings, checkpointer, check_urls: 
                     trust = trust_of(url)
                 else:
                     text = src["text"]
-            except IngestError as e:
-                events.append(ev("ingest", f"{sid} skipped ({url}): {e}", "warn"))
+            except (IngestError, OSError, ValueError, TypeError) as e:
+                # one unreachable/malformed source must never kill the run
+                events.append(ev("ingest", f"{sid} skipped ({url or 'text source'}): {type(e).__name__}: {e}", "warn"))
                 continue
             text = clean_text(text, s.max_source_chars)
             if len(text) < 80:

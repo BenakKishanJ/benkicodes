@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     voice_file: Path = Path("voice/ben.md")
     banned_file: Path = Path("voice/banned.txt")
 
-    site_repo_path: Path = Path("..")
+    site_repo_path: Path = Path("../..")   # repo root, relative to apps/pipeline where `pipeline serve` runs
     site_blog_dir: str = "apps/site/src/content/blog"
     site_base_url: str = "https://benkicodes.pages.dev"
     publish_mode: str = "git"        # git | files

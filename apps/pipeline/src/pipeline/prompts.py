@@ -71,6 +71,9 @@ def writer_user(req: dict, plan: dict, sources: list[dict], limit: int, lo: int,
 # ---------------------------------------------------------------- check (`check` task: critique + SEO in one call)
 CHECK_SYSTEM = (
     f"You are a strict, fair technical editor, fact-checker AND SEO package writer. {DATA_RULES} "
+    "The draft is an excerpt of a page: the pipeline renders the page title as an H1 and adds "
+    "frontmatter/search metadata at publish time. Never flag a missing H1, missing frontmatter, "
+    "missing slug, tags, or description; judge the body text only. "
     "Score the draft 1-5 on each dimension, list concrete issues with a location and a fix, and list every "
     "statement that is not supported by the plan or sources under unsupported_claims (empty list if none). "
     "Then produce search metadata: title under 60 characters, specific, no clickbait; description 120-155 "

@@ -80,18 +80,19 @@ def fetch_url(url: str, timeout: float = 15.0, allow_private: bool = False) -> t
     if not robots_allowed(url):
         raise IngestError("blocked by robots.txt")
     try:
-        with httpx.stream("GET", url, timeout=timeout, follow_redirects=True, headers={"User-Agent": UA}, max_redirects=5) as r:
-            if r.status_code >= 400:
-                raise IngestError(f"HTTP {r.status_code}")
-            ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
-            if ctype not in ("text/html", "application/xhtml+xml", "text/plain", "text/markdown", "application/pdf"):
-                raise IngestError(f"unsupported content type: {ctype or 'unknown'}")
-            buf = bytearray()
-            for chunk in r.iter_bytes():
-                buf.extend(chunk)
-                if len(buf) > MAX_BYTES:
-                    raise IngestError("page too large")
-            raw, encoding = bytes(buf), r.encoding or "utf-8"
+        with httpx.Client(follow_redirects=True, max_redirects=5, headers={"User-Agent": UA}, timeout=timeout) as client, \
+                client.stream("GET", url) as r:
+                if r.status_code >= 400:
+                    raise IngestError(f"HTTP {r.status_code}")
+                ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
+                if ctype not in ("text/html", "application/xhtml+xml", "text/plain", "text/markdown", "application/pdf"):
+                    raise IngestError(f"unsupported content type: {ctype or 'unknown'}")
+                buf = bytearray()
+                for chunk in r.iter_bytes():
+                    buf.extend(chunk)
+                    if len(buf) > MAX_BYTES:
+                        raise IngestError("page too large")
+                raw, encoding = bytes(buf), r.encoding or "utf-8"
     except httpx.HTTPError as e:
         raise IngestError(f"network error: {type(e).__name__}") from e
 
