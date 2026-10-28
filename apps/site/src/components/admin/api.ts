@@ -117,17 +117,17 @@ export function streamRun(
 }
 
 export const busy = (s: string) =>
-  s === 'working' || s === 'queued' || s === 'streaming' || s === 'writing' || s === 'checking';
-export const terminal = (s: string) => s === 'published' || s === 'failed' || s === 'rejected';
-export const needsDecision = (s: string) => s === 'awaiting_plan' || s === 'awaiting_review';
+  !terminal(s) && s !== 'paused_budget' && !needsDecision(s);
+
+export const terminal = (s: string) => s === 'published' || s === 'failed' || s === 'rejected' || s === 'planning_done';
+export const needsDecision = (s: string) =>
+  s === 'awaiting_plan' || s === 'awaiting_review' || s === 'awaiting_refs';
 
 export function statusColor(s: string): string {
-  if (s === 'published') return 'var(--green)';
+  if (s === 'published' || s === 'planning_done') return 'var(--green)';
   if (s === 'failed' || s === 'rejected') return 'var(--red)';
-  if (s === 'awaiting_plan' || s === 'awaiting_review') return 'var(--yellow)';
-  if (s === 'paused_budget' || s === 'warn') return 'var(--yellow)';
-  if (busy(s)) return 'var(--accent)';
-  return 'var(--muted)';
+  if (needsDecision(s) || s === 'paused_budget') return 'var(--yellow)';
+  return 'var(--accent)';
 }
 
 export function fmtTs(ts?: string): string {

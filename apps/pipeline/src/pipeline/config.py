@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     app_title: str = "benki-pipeline"
     models_file: Path = Path("config/models.yaml")   # task -> model routing
     blog_budget_usd: float = 1.0          # per-run cap default; overridable per run
+    course_budget_usd: float = 2.0        # course runs are heavier (code model involved)
     budget_warn_at: float = 0.8
 
     data_dir: Path = Path("data")
@@ -27,10 +28,18 @@ class Settings(BaseSettings):
 
     site_repo_path: Path = Path("../..")   # repo root, relative to apps/pipeline where `pipeline serve` runs
     site_blog_dir: str = "apps/site/src/content/blog"
+    site_roadmaps_dir: str = "apps/site/src/content/roadmaps"
     site_base_url: str = "https://benkicodes.pages.dev"
     publish_mode: str = "git"        # git | files
     git_branch: str = "main"
     git_remote: str = "origin"
+
+    # course repos (03-prd §7.4): one git repo per course, sibling of the monorepo.
+    # Relative to apps/pipeline cwd (where `pipeline serve` runs), like site_repo_path.
+    courses_dir: Path = Path("../../..") / "courses"
+    templates_dir: Path = Path("templates/course-repo")
+    repo_cmds: list[str] = ["uv sync", "uv add", "uv run pytest", "uv run ruff check"]
+    repo_cmd_timeout: float = 600.0   # pytest on a small project is fast; give sync room
 
     checkpoint_plan: bool = True
     max_auto_revisions: int = 1
@@ -47,6 +56,11 @@ class Settings(BaseSettings):
     def worktree_dir(self) -> Path:
         """Detached publish worktree. Relative paths are anchored to the site repo root by publisher.publish_post."""
         return self.data_dir / "publish-worktree"
+
+    @property
+    def courses_root(self) -> Path:
+        """Absolute COURSES_DIR (03-prd §7.4), resolved like site_repo_path from the cwd."""
+        return self.courses_dir.expanduser().resolve()
 
     def ensure_dirs(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)

@@ -53,13 +53,15 @@ export default function BlogReview({ runId, onExit, onStatusChange }: {
       runId,
       (f: StreamFrame) => {
         // First frame replays the full history (server starts sent_n at 0);
-        // later frames carry only fresh events.
+        // later frames carry only fresh events. `pending` rides every frame so
+        // an interrupt arriving while you watch flips the decision panel live.
         const wasFirst = first;
         first = false;
         setRun((r) => (r ? {
           ...r,
           status: f.status,
           events: wasFirst ? f.events : [...r.events, ...f.events],
+          pending: f.pending ? { type: f.pending } : r.pending,
           usage: r.usage.budget ? { ...r.usage, budget: { ...r.usage.budget, spent: f.spent } } : r.usage,
         } : r));
       },

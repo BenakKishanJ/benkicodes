@@ -27,10 +27,11 @@ from .gateway.budget import BudgetPause
 from .gateway.client import Gateway, get_gateway
 from .gateway.models import price_mtok
 from .graphs.blog import build_blog_graph
-from .schemas import Decision, PlanDecision, RunRequest
+from .graphs.course import PLANNING_DONE, build_course_graph
+from .schemas import CoursePlanDecision, CourseRunRequest, Decision, PlanDecision, RefsDecision, RunRequest
 from .store import RunStore
 
-TERMINAL = {"published", "rejected", "failed"}
+TERMINAL = {"published", "rejected", "failed", PLANNING_DONE}
 _md = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable("table")  # raw HTML disabled: LLM output is untrusted
 
 
@@ -38,7 +39,9 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
     s = settings or get_settings()
     s.ensure_dirs()
     gateway = gw or get_gateway(s)
-    graph = build_blog_graph(gateway, s, SqliteSaver(sqlite3.connect(s.data_dir / "checkpoints.db", check_same_thread=False)), check_urls)
+    cp = SqliteSaver(sqlite3.connect(s.data_dir / "checkpoints.db", check_same_thread=False))
+    graphs = {"blog": build_blog_graph(gateway, s, cp, check_urls),
+              "course": build_course_graph(gateway, s, cp, check_urls)}
     store = RunStore(s.data_dir / "runs.db")
     pool = ThreadPoolExecutor(max_workers=2)
     running: set[str] = set()
@@ -53,13 +56,14 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
             raise HTTPException(401, "bad or missing X-Admin-Token")
 
     cfg = lambda rid: {"configurable": {"thread_id": rid}}
+    graph_for = lambda rid: graphs[(store.get(rid) or {}).get("mode", "blog")]
 
     # ---------------------------------------------------------------- running graphs in the background
     def drive(rid: str, payload: Any) -> None:
         with lock:
             running.add(rid)
         try:
-            graph.invoke(payload, cfg(rid))
+            graph_for(rid).invoke(payload, cfg(rid))
             store.update(rid, error=None)
         except BudgetPause:
             store.update(rid, status="paused_budget", error=None)
@@ -77,14 +81,15 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
         return None
 
     def status_of(rid: str) -> str:
-        snap = graph.get_state(cfg(rid))
+        snap = graph_for(rid).get_state(cfg(rid))
         row = store.get(rid) or {}
         if rid in running:
             st = (snap.values or {}).get("status")
             return "working" if st in (None, "awaiting_plan", "awaiting_review") else st
         p = pending_of(snap)
         if p:
-            return "awaiting_plan" if p.get("type") == "plan" else "awaiting_review"
+            return {"plan": "awaiting_plan", "course_plan": "awaiting_plan",
+                    "refs": "awaiting_refs"}.get(p.get("type"), "awaiting_review")
         if row.get("status") == "paused_budget":
             return "paused_budget"
         if row.get("error"):
@@ -93,7 +98,7 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
 
     def usage_view(rid: str, u: dict) -> dict:
         row = store.get(rid) or {}
-        cap = row.get("budget_cap") or s.blog_budget_usd
+        cap = row.get("budget_cap") or (s.course_budget_usd if row.get("mode") == "course" else s.blog_budget_usd)
         spent = float(u.get("usd", 0.0))
         return {**u, "budget": {"cap": cap, "spent": round(spent, 4),
                                 "warn": spent >= s.budget_warn_at * cap, "pause_exhausted": spent >= cap}}
@@ -102,14 +107,14 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
         row = store.get(rid)
         if not row:
             raise HTTPException(404, "run not found")
-        snap = graph.get_state(cfg(rid))
+        snap = graph_for(rid).get_state(cfg(rid))
         v = snap.values or {}   # right after creation there is no checkpoint yet
         draft = v.get("draft_md", "")
         prev = v.get("prev_draft")
         diff = "\n".join(difflib.unified_diff(prev.splitlines(), draft.splitlines(), "previous", "current", lineterm="", n=2)) if prev else ""
         check = v.get("check", {})
-        return {
-            "id": rid, "topic": row["topic"], "status": status_of(rid), "error": row.get("error"),
+        out = {
+            "id": rid, "topic": row["topic"], "mode": row["mode"], "status": status_of(rid), "error": row.get("error"),
             "created_at": row["created_at"], "updated_at": row["updated_at"],
             "pending": pending_of(snap),
             "events": v.get("events", []),
@@ -124,6 +129,13 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
             "usage": usage_view(rid, v.get("usage", {})),
             "calls": list(reversed(v.get("calls", [])))[:12],
         }
+        if row["mode"] == "course":
+            out["course"] = {"docs": v.get("docs", []), "refs": v.get("refs", []),
+                             "inspired_by": v.get("inspired_by", []),
+                             "repo": v.get("repo"), "plan": v.get("plan"),
+                             "plan_feedback": v.get("plan_feedback", []),
+                             "published_parts": v.get("published_parts", [])}
+        return out
 
     # ---------------------------------------------------------------- routes
     @app.get("/health")
@@ -135,7 +147,7 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
         tasks = {t: {k: v.get(k) for k in ("model", "fallbacks", "purpose")} for t, v in gateway.tasks.items()}
         return {"tasks": tasks, "publish_mode": s.publish_mode, "branch": s.git_branch,
                 "checkpoint_plan": s.checkpoint_plan, "site_base_url": s.site_base_url,
-                "default_budget_usd": s.blog_budget_usd,
+                "default_budget_usd": s.blog_budget_usd, "course_budget_usd": s.course_budget_usd,
                 "api_key_configured": bool(s.openrouter_api_key)}
 
     @app.get("/credits", dependencies=[Depends(auth)])
@@ -180,12 +192,15 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
                 "answer": text[:80], "usage": getattr(out, "usage_metadata", None)}
 
     @app.post("/runs", dependencies=[Depends(auth)], status_code=202)
-    def create_run(req: RunRequest):
+    def create_run(req: RunRequest | CourseRunRequest):
         rid = uuid.uuid4().hex[:10]
-        store.create(rid, req.topic, budget_cap=req.budget_usd or s.blog_budget_usd)
+        course = req.mode == "course"
+        topic = req.subject if course else req.topic
+        default_cap = s.course_budget_usd if course else s.blog_budget_usd
+        store.create(rid, topic, mode=req.mode, budget_cap=req.budget_usd or default_cap)
         with lock:
             running.add(rid)
-        pool.submit(drive, rid, {"run_id": rid, "mode": "blog", "inputs": req.model_dump()})
+        pool.submit(drive, rid, {"run_id": rid, "mode": req.mode, "inputs": req.model_dump()})
         return {"id": rid}
 
     @app.get("/runs", dependencies=[Depends(auth)])
@@ -226,11 +241,17 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
     def resume(rid: str, body: dict):
         if rid in running:
             raise HTTPException(409, "run is busy")
-        p = pending_of(graph.get_state(cfg(rid)))
+        p = pending_of(graph_for(rid).get_state(cfg(rid)))
         if not p:
             raise HTTPException(409, "run is not waiting for input")
+        schema = {"plan": PlanDecision, "review": Decision, "refs": RefsDecision,
+                  "course_plan": CoursePlanDecision}.get(p.get("type"))
+        if schema is None:
+            raise HTTPException(409, f"unknown interrupt type: {p.get('type')}")
         try:
-            decision = (PlanDecision if p.get("type") == "plan" else Decision).model_validate(body)
+            decision = schema.model_validate(body)
+        except ValidationError as e:
+            raise HTTPException(422, e.errors()[0]["msg"]) from e
         except ValidationError as e:
             raise HTTPException(422, e.errors()[0]["msg"]) from e
         with lock:
@@ -250,10 +271,10 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
             cap = float(body["budget_usd"])
         except (KeyError, TypeError, ValueError) as e:
             raise HTTPException(422, "budget_usd (number) required") from e
-        spent = float((graph.get_state(cfg(rid)).values or {}).get("usage", {}).get("usd", 0.0))
+        spent = float((graph_for(rid).get_state(cfg(rid)).values or {}).get("usage", {}).get("usd", 0.0))
         if cap <= spent:
             raise HTTPException(422, f"new cap must exceed the ${spent:.2f} already spent")
-        graph.update_state(cfg(rid), {"budget_usd": cap})
+        graph_for(rid).update_state(cfg(rid), {"budget_usd": cap})
         store.update(rid, budget_cap=cap, error=None)
         resumed = row.get("status") == "paused_budget" or row.get("error")
         if resumed:
@@ -306,7 +327,7 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
             raise HTTPException(409, "run is busy")
         store.delete(rid)
         with suppress(Exception):   # checkpointer may not expose delete_thread
-            graph.checkpointer.delete_thread(rid)  # type: ignore[union-attr]
+            graph_for(rid).checkpointer.delete_thread(rid)  # type: ignore[union-attr]
         return {"ok": True}
 
     return app

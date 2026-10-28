@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, API_DEFAULT, busy, clearToken, api, fmtTs, getBase, getToken, needsDecision, setBase, setToken, usd } from './api';
 import { Chip, ErrBox, ErrorBoundary, Field, inputCls } from './ui';
 import BlogReview from './blog/BlogReview';
+import CourseReview from './course/CourseReview';
+import CourseForm from './course/CourseForm';
 import Library from './library/Library';
 import NewBlogForm from './runs/NewBlogForm';
 import RunList from './runs/RunList';
@@ -22,7 +24,8 @@ export default function PipelineConsole() {
   const [lib, setLib] = useState<LibraryItem[]>([]);
   const [screen, setScreen] = useState<Screen>('runs');
   const [openRun, setOpenRun] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const [openMode, setOpenMode] = useState<'blog' | 'course' | null>(null);
+  const [showNew, setShowNew] = useState<'blog' | 'course' | null>(null);
   const [err, setErr] = useState<unknown>(null);
 
   const loadAll = useCallback(async () => {
@@ -81,7 +84,10 @@ export default function PipelineConsole() {
     return () => window.clearInterval(pollRef.current);
   }, [phase, openRun, anyBusy]);
 
-  const open = (id: string) => { setOpenRun(id); };
+  const open = (id: string, mode?: string) => {
+    setOpenRun(id);
+    setOpenMode((mode ?? runs.find((r) => r.id === id)?.mode ?? 'blog') === 'course' ? 'course' : 'blog');
+  };
   const onStatusChange = useCallback(() => {
     api.runs().then(setRuns).catch(() => {});
     api.library().then(setLib).catch(() => {});
@@ -133,17 +139,23 @@ export default function PipelineConsole() {
 
       {openRun && (
         <ErrorBoundary key={openRun}>
-          <BlogReview runId={openRun} onExit={() => { setOpenRun(null); onStatusChange(); }} onStatusChange={onStatusChange} />
+          {openMode === 'course'
+            ? <CourseReview runId={openRun} onExit={() => { setOpenRun(null); onStatusChange(); }} onStatusChange={onStatusChange} />
+            : <BlogReview runId={openRun} onExit={() => { setOpenRun(null); onStatusChange(); }} onStatusChange={onStatusChange} />}
         </ErrorBoundary>
       )}
 
       {!openRun && screen === 'runs' && (
         <div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-            <h1 className="t-2">Blog runs</h1>
-            <button type="button" className="btn btn-sm" aria-pressed={showNew} onClick={() => setShowNew((v) => !v)}>{showNew ? 'close' : '+ new blog'}</button>
+            <h1 className="t-2">Runs</h1>
+            <span className="flex gap-2">
+              <button type="button" className="btn btn-sm" aria-pressed={showNew === 'blog'} onClick={() => setShowNew(showNew === 'blog' ? null : 'blog')}>{showNew === 'blog' ? 'close' : '+ new blog'}</button>
+              <button type="button" className="btn btn-sm" aria-pressed={showNew === 'course'} onClick={() => setShowNew(showNew === 'course' ? null : 'course')}>{showNew === 'course' ? 'close' : '+ new course'}</button>
+            </span>
           </div>
-          {showNew && <NewBlogForm defaultBudget={cfg?.default_budget_usd ?? 1} created={(id) => { setShowNew(false); api.runs().then(setRuns).catch(() => {}); open(id); }} />}
+          {showNew === 'blog' && <NewBlogForm defaultBudget={cfg?.default_budget_usd ?? 1} created={(id) => { setShowNew(null); api.runs().then(setRuns).catch(() => {}); open(id, 'blog'); }} />}
+          {showNew === 'course' && <CourseForm defaultBudget={cfg?.course_budget_usd ?? 2} created={(id) => { setShowNew(null); api.runs().then(setRuns).catch(() => {}); open(id, 'course'); }} />}
           <RunList runs={runs} open={open}
                    onDelete={async (id) => { try { await api.del(id); onStatusChange(); } catch (e) { setErr(e); } }} />
           {err !== null && <ErrBox err={err} />}

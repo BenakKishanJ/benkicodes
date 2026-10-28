@@ -11,12 +11,15 @@ import yaml
 DEFAULT_TASKS = {
     "fast": {"model": "nvidia/nemotron-3-super-120b-a12b:free", "fallbacks": [], "temperature": 0.2},
     "plan": {"model": "deepseek/deepseek-v4-flash", "fallbacks": [], "temperature": 0.3},
+    "plan_code": {"model": "deepseek/deepseek-v4-flash", "fallbacks": [], "temperature": 0.3},
     "write": {"model": "deepseek/deepseek-v4-flash", "fallbacks": [], "temperature": 0.7},
     "check": {"model": "z-ai/glm-5.3-flash", "fallbacks": [], "temperature": 0.2},
+    "research": {"model": "z-ai/glm-5.3-flash", "fallbacks": [], "temperature": 0.3,
+                 "plugins": [{"id": "web"}]},
 }
 
 def load_tasks(path: Path) -> dict[str, dict]:
-    """task -> {model, fallbacks, temperature}. Falls back to in-code defaults."""
+    """task -> {model, fallbacks, temperature, plugins?}. Falls back to in-code defaults."""
     cfg: dict = {}
     try:
         cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}

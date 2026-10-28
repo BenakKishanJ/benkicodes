@@ -1,6 +1,7 @@
 """OpenRouter gateway implementation over langchain-openrouter's ChatOpenRouter."""
 from __future__ import annotations
 
+import json
 import time
 from datetime import UTC, datetime
 from typing import Protocol, TypeVar
@@ -93,7 +94,9 @@ class OpenRouterGateway:
         return [(tasks["model"], temp)] + [(m, temp) for m in tasks.get("fallbacks", [])]
 
     def _chat_task_model(self, task: str, model_id: str, temp: float, structured: bool):
-        key = (model_id, temp, structured)
+        """Chat model for a task. A task may carry OpenRouter `plugins` (e.g. web search)."""
+        plugins = self.tasks.get(task, {}).get("plugins")
+        key = (model_id, temp, structured, json.dumps(plugins, sort_keys=True) if plugins else "")
         if key not in self._cache:
             self._cache[key] = self._Chat(
                 model=model_id,
@@ -103,6 +106,7 @@ class OpenRouterGateway:
                 max_retries=1,
                 app_title="benki-pipeline",
                 openrouter_provider={"require_parameters": True} if structured else None,
+                plugins=plugins,
             )
         return self._cache[key]
 

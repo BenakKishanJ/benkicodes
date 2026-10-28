@@ -32,6 +32,7 @@ class SourceInput(BaseModel):
 
 
 class RunRequest(BaseModel):
+    mode: Literal["blog"] = "blog"
     topic: str = Field(min_length=3, max_length=200)
     audience: str = "developers learning full-stack and AI engineering"
     angle: str | None = None
@@ -126,6 +127,136 @@ class Decision(BaseModel):
     edited_md: str | None = None         # Ben's direct edits are authoritative
     seo: dict | None = None              # optional overrides: title, description, slug, tags, category
     force: bool = False                  # publish even though a blocking gate failed
+
+
+# ---------------------------------------------------------------- course pipeline (03-prd §7)
+RefType = Literal["docs", "video", "article", "repo", "interactive", "book", "course", "roadmap"]
+
+
+class RefInput(BaseModel):
+    """A reference coming off the search call — or typed by hand in refs_review."""
+    title: str
+    url: str
+    type: RefType = "article"
+    illustrated: bool = False
+    level: str = ""
+    why: str = ""
+
+    @field_validator("url")
+    @classmethod
+    def _url(cls, v: str) -> str:
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("reference url must be http(s)")
+        return v
+
+
+class CourseRunRequest(BaseModel):
+    """POST /runs body for a course run (graph `course`). Mirrors the New-Course form."""
+    mode: Literal["course"]
+    subject: str = Field(min_length=3, max_length=200)
+    level: Literal["beginner", "intermediate", "advanced"] = "intermediate"
+    audience: str = "developers who learn best by building"
+    docs_urls: list[str] = Field(min_length=1, max_length=8)   # official docs to ground the course
+    min_parts: int = Field(ge=1, le=20, default=2)
+    max_parts: int = Field(ge=1, le=20, default=6)
+    hints: str = ""
+    repo_name: str = Field(min_length=3, max_length=80, description="folder + GitHub repo name, e.g. langgraph-deep-research")
+    remote_url: str | None = Field(default=None, description="empty public GitHub repo; verified by doctor")
+    budget_usd: float | None = None      # None -> Settings.course_budget_usd
+
+    @field_validator("docs_urls")
+    @classmethod
+    def _urls(cls, v: list[str]) -> list[str]:
+        for u in v:
+            if not u.startswith(("http://", "https://")):
+                raise ValueError("docs_urls must be http(s) urls")
+        return v
+
+    @model_validator(mode="after")
+    def _parts(self):
+        if self.min_parts > self.max_parts:
+            raise ValueError("min_parts must be <= max_parts")
+        return self
+
+
+class CourseRef(BaseModel):
+    """A verified reference after research_refs (+ any Ben added in review)."""
+    id: str                              # R1, R2, ...
+    title: str
+    url: str
+    type: RefType
+    illustrated: bool = False
+    level: str = ""                      # free-form: beginner/…/n/a
+    why: str = ""
+    verified: bool = False               # fetched OK during research
+
+
+class CommitStep(BaseModel):
+    title: str
+    intent: str = Field(description="What this commit accomplishes and why it comes here")
+    files: list[str] = Field(default=[], description="Paths the commit is expected to touch")
+
+
+class PlannedPart(BaseModel):
+    n: int = Field(ge=1)
+    slug: str
+    title: str
+    objectives: list[str] = Field(min_length=2, description="What the learner can do after this part")
+    concepts: list[str] = []
+    steps: list[CommitStep] = Field(min_length=1, max_length=4, description="2-4 planned commits")
+    doc_urls: list[str] = Field(default=[], description="official docs URLs from the docs map")
+    ref_ids: list[str] = Field(default=[], description="kept reference ids, each explained in resource_notes")
+    resource_notes: dict[str, str] = Field(default={}, description="ref_id -> one-line why this reference belongs here")
+    estimatedMinutes: int = Field(default=90, ge=20, le=240)
+
+    @field_validator("slug")
+    @classmethod
+    def _slug(cls, v: str) -> str:
+        if not SLUG_RE.match(v.strip().lower()):
+            raise ValueError("part slug must be lowercase-kebab-case")
+        return v.strip().lower()
+
+
+class CourseProject(BaseModel):
+    name: str
+    slug: str
+    summary: str = Field(min_length=10, description='"You will build X" in one or two sentences')
+    stack: list[str] = Field(min_length=1)
+    architecture_md: str = Field(default="", description="Initial docs/ARCHITECTURE.md text")
+    final_features: list[str] = Field(min_length=1, description="What exists at the last part")
+
+
+class CoursePlan(BaseModel):
+    project: CourseProject
+    parts: list[PlannedPart] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _order(self):
+        ns = [p.n for p in self.parts]
+        if sorted(ns) != list(range(1, len(ns) + 1)):
+            raise ValueError("parts must be numbered 1..N in order")
+        if len({p.slug for p in self.parts}) != len(self.parts):
+            raise ValueError("part slugs must be unique")
+        return self
+
+
+class RefsDecision(BaseModel):
+    """Resume payload for the refs_review interrupt."""
+    keep: list[str] = Field(min_length=1, description="reference ids to keep")
+    added: list[RefInput] = []
+    inspired_by: list[str] = []          # ids of refs credited on the course page
+
+
+class ResearchOutput(BaseModel):
+    """Structured result of the search-enabled reference survey."""
+    refs: list[RefInput] = Field(min_length=3, max_length=20)
+
+
+class CoursePlanDecision(BaseModel):
+    """Resume payload for the plan_review interrupt."""
+    action: Literal["approve", "changes"]
+    plan: dict | None = None             # Ben's edited CoursePlan wins when provided
+    comments: list[str] = []
 
 
 # ---------------------------------------------------------------- content contract (mirrors packages/content-schema)

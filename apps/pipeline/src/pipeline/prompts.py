@@ -101,3 +101,60 @@ def feedback_user(draft: str, comments: list[str]) -> str:
     cm = "\n".join(f"- {c}" for c in comments)
     return (f"The author reviewed the draft and left these comments. Apply them with the smallest possible changes, keep all citations "
             f"and the author's approved wording elsewhere, and do not add unsupported facts.\n\nCOMMENTS:\n{cm}\n\nDRAFT:\n{draft}\n\nReturn the full updated article body in Markdown.")
+
+
+# ================================================================ course pipeline (03-prd §7)
+# ---------------------------------------------------------------- research_refs (research task, web plugin on)
+RESEARCH_SYSTEM = (
+    f"You are researching what already exists to plan a hands-on programming course. {DATA_RULES} "
+    "You can browse the web. Find the best existing learning resources for the subject: official "
+    "tutorials, well-regarded course modules or roadmaps, popular example repositories, articles "
+    "and video explainers that are genuinely useful for learners BUILDING the project (not clickbait "
+    "lists). For each: a real URL you saw in search results, its type, whether it is visually "
+    "illustrated (diagrams/captures), the skill level it serves, and a one-line why a learner would "
+    "click it. Prefer depth (official docs, canonical repos) over aggregation posts; no paywalls."
+)
+
+
+def research_user(subject: str, level: str, audience: str, docs_urls: list[str], hints: str) -> str:
+    return (f"Course subject: {subject}\nTarget level: {level}\nAudience: {audience}\n"
+            f"Official docs the course is grounded in (already covered separately, find OTHER resources): "
+            f"{'; '.join(docs_urls)}\nAuthor hints: {hints or '(none)'}\n\n"
+            "Return 8-15 references found in search results, as one object with a refs list.")
+
+
+# ---------------------------------------------------------------- plan_course (plan task, structured)
+PLAN_COURSE_SYSTEM = (
+    f"You are designing a hands-on course the learner builds part by part, Full Stack Open style. {DATA_RULES} "
+    "The final app is the point; the parts are the steps. Design the project first (what is built, stack, "
+    "architecture, what exists at the end), then split it into parts of about 1-3 hours each, in the "
+    "requested range. Every part adds working code through 2-4 planned commits that each make sense on "
+    "their own, includes tests for its behavior (fake LLM or mocks, no network), and teaches named "
+    "concepts. Each part must list: >=2 concrete objectives (learner-can-do), its commits, and which "
+    "official docs pages and kept references it relies on (only ids/urls from the provided lists, each "
+    "reference used in a part gets a one-line why in resource_notes)."
+)
+
+
+def plan_course_user(req: dict, docs: list[dict], refs: list[dict], feedback: list[str],
+                     prev: dict | None, excerpt_chars: int = 400) -> str:
+    fb = ""
+    if feedback:
+        fb = "\n\nThe author asked for these changes to the previous plan:\n- " + "\n- ".join(feedback)
+        if prev:
+            fb += f"\n\nPrevious plan:\n{prev}"
+    docs_tbl = []
+    for d in docs:
+        docs_tbl.append(f"- [{d['id']}] {d['title']} — {d['url']} — excerpt: {d.get('excerpt', '')[:excerpt_chars]}")
+    refs_tbl = []
+    for r in refs:
+        refs_tbl.append(f"- [{r['id']}] {r['title']} ({r['type']}, {r['level'] or 'n/a'}"
+                        f"{', illustrated' if r.get('illustrated') else ''}) — {r['url']}")
+    return (f"Subject: {req['subject']}\nLevel: {req['level']}\nAudience: {req['audience']}\n"
+            f"Parts: between {req['min_parts']} and {req['max_parts']}\n"
+            f"Repo: github repo name {req['repo_name']} (python + uv + pytest project)\n"
+            f"Author hints: {req.get('hints') or '(none)'}\n\n"
+            f"Official docs map (doc_urls must come from these):\n" + "\n".join(docs_tbl) +
+            f"\n\nReferences kept by the author (ref_ids must come from these):\n" +
+            ("\n".join(refs_tbl) or "(none — rely on the official docs only)") +
+            f"{fb}\n\nProduce the CoursePlan as one object.")
