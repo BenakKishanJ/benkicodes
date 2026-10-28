@@ -108,6 +108,64 @@ def test_doctor_on_local_repo(tmp_path):
     assert out["empty_ok"] is False  # ls-remote without a remote fails
 
 
+# ---------------------------------------------------------------- part loop mechanics
+def test_start_part_branches_from_previous_tag(repo):
+    repo.tag(0, "part-0")
+    sha = repo.start_part(1)
+    assert repo.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "wip/part-1"
+    assert sha == repo.head()
+    # existing branch is reused
+    repo.start_part(1)
+    with pytest.raises(RepoError, match="uncommitted"):
+        (repo.root / "dirty.txt").write_text("x")
+        repo.start_part(2)
+
+
+def test_apply_file_edit_ops(repo):
+    repo.write_file("app.py", "a = 1\nb = 2\n")
+    repo.stage_and_commit("part-0: base")
+    # create
+    repo.apply_file_edit("new.py", "create", content="x = 1\n")
+    assert (repo.root / "new.py").read_text() == "x = 1\n"
+    with pytest.raises(RepoError, match="already exists"):
+        repo.apply_file_edit("new.py", "create", content="x = 1\n")
+    # edit: search must match exactly once
+    repo.apply_file_edit("app.py", "edit", edits=[{"search": "b = 2", "replace": "b = 3"}])
+    assert "b = 3" in (repo.root / "app.py").read_text()
+    with pytest.raises(RepoError, match="not found"):
+        repo.apply_file_edit("app.py", "edit", edits=[{"search": "zzz", "replace": "y"}])
+    repo.write_file("dup.py", "same\nsame\n")
+    with pytest.raises(RepoError, match="2 times"):
+        repo.apply_file_edit("dup.py", "edit", edits=[{"search": "same", "replace": "x"}])
+    # replace + delete
+    repo.apply_file_edit("app.py", "replace", content="a = 9\n")
+    assert (repo.root / "app.py").read_text() == "a = 9\n"
+    repo.apply_file_edit("new.py", "delete")
+    assert not (repo.root / "new.py").exists()
+    with pytest.raises(RepoError, match="does not exist"):
+        repo.apply_file_edit("new.py", "delete")
+
+
+def test_changed_lines_and_commit_list(repo):
+    repo.tag(0, "part-0")
+    repo.start_part(1)
+    repo.write_file("big.py", "\n".join(f"x{i} = {i}" for i in range(30)) + "\n")
+    repo.stage_and_commit("part-1: add big module")
+    assert repo.changed_lines() >= 30
+    commits = repo.commit_list("part-0..HEAD")
+    assert [c["message"] for c in commits] == ["part-1: add big module"]
+    numbered = repo.files_line_numbered(["big.py", "missing.py"])
+    assert "x0 = 0" in numbered["big.py"] and "missing.py" not in numbered
+
+
+def test_read_head_sees_committed_state(repo):
+    repo.write_file("h.txt", "committed\n")
+    repo.stage_and_commit("part-0: add h")
+    (repo.root / "h.txt").write_text("dirty\n")
+    assert repo.read_head("h.txt") == "committed\n"
+    assert repo.read_head("nope.txt") is None
+
+
 # ---------------------------------------------------------------- scaffold
 def test_render_template(tmp_path):
     tpl = Path("templates/course-repo")

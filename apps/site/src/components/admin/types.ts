@@ -3,8 +3,12 @@
 
 export type RunStatus =
   | 'queued' | 'working' | 'awaiting_plan' | 'awaiting_review' | 'awaiting_refs'
+  | 'awaiting_code' | 'awaiting_lesson'
   | 'paused_budget' | 'published' | 'failed' | 'rejected' | 'planning_done'
-  | 'planning' | 'reviewing' | 'preparing_repo';
+  | 'planning' | 'reviewing' | 'preparing_repo'
+  // course part-loop in-flight statuses (course.py sets these on state)
+  | 'coding' | 'reviewing_code' | 'writing_lesson' | 'quizzing' | 'checking_lesson'
+  | 'gating' | 'fixing_lesson' | 'publishing' | 'between_parts';
 
 export interface RunItem {
   id: string;
@@ -46,7 +50,7 @@ export interface CheckView {
   seo?: SeoView;
 }
 
-export interface GateView { id: string; level: string; status: string; detail?: string }
+export interface GateView { name: string; status: string; detail?: string }
 
 export interface EventView { t: string; node: string; msg: string; level: string }
 
@@ -58,7 +62,8 @@ export interface RunView {
   error: string | null;
   created_at: string;
   updated_at: string;
-  pending: { type: string } | null;
+  pending: { type: string; note?: string; code_fixes?: number; max_fixes?: number;
+             changed_lines?: number; hard_fail?: string | null; round?: number } | null;
   events: EventView[];
   sources: SourceView[];
   plan: { angle?: string; working_title?: string; sections?: { heading: string; goal: string; key_points?: unknown[] }[] } | null;
@@ -106,6 +111,27 @@ export interface CourseRepoView {
   remote_ok?: boolean; empty_ok?: boolean; tagged?: string[];
 }
 
+export interface CodeCommitView {
+  sha: string; message: string;
+  diff?: string;   // bounded per-commit diff from the code_review interrupt payload
+}
+
+export interface QuizOptionView { id: string; text: string }
+
+export interface QuizQuestionView {
+  id: string; question: string; type?: string;
+  options: QuizOptionView[]; correct: string[];
+  explanation?: string; difficulty?: string; hint?: string | null;
+}
+
+export interface LessonCheckView {
+  scores?: Record<string, number>;
+  issues?: { severity: string; location: string; problem: string; fix: string }[];
+  unsupported_claims?: string[];
+  meta_description?: string;
+  summary_for_next?: string;
+}
+
 export interface CourseRunView {
   docs: CourseDoc[];
   refs: CourseRef[];
@@ -113,7 +139,30 @@ export interface CourseRunView {
   repo: CourseRepoView | null;
   plan: CoursePlanView | null;
   plan_feedback: string[];
-  published_parts?: unknown[];
+  published_parts?: PublishedPart[];
+  // -- part loop in flight
+  part_n?: number | null;
+  part?: PlannedPart | null;
+  part_start_sha?: string;
+  code?: { commits?: { message: string; add_dependencies?: { name: string; dev?: boolean }[] }[]; notes_for_lesson?: string } | null;
+  commits?: CodeCommitView[];
+  tests?: { ok: boolean; output: string; seconds?: number; at?: string } | null;
+  code_fixes?: number;
+  lesson_md?: string;
+  lesson_html?: string;
+  lesson_html_rendered?: string;
+  lesson_fixes?: number;
+  quiz?: QuizQuestionView[];
+  check?: LessonCheckView | null;
+  gates?: GateView[];
+  glossary?: Record<string, string>;
+  summary_for_next?: string;
+}
+
+export interface PublishedPart {
+  n: number; slug: string; title: string;
+  tag: string; tag_url: string; compare_url: string; tree_url: string;
+  lesson_url: string; site_commit?: string | null; paths?: string[];
 }
 
 export interface TaskSetting { model?: string; fallbacks?: string[]; purpose?: string }
@@ -155,3 +204,5 @@ export type RefsDecision = {
   inspired_by: string[];
 };
 export type CoursePlanDecision = { action: 'approve' | 'changes'; plan?: unknown | null; comments: string[] };
+export type CodeReviewDecision = { action: 'accept' | 'fix'; comment?: string | null; commit_message?: string | null };
+export type LessonReviewDecision = { action: 'approve' | 'fix' | 'back_to_code'; edited_md?: string | null; comment?: string | null };

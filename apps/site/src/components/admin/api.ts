@@ -63,6 +63,15 @@ export const api = {
   retry: (id: string) => req(`/runs/${id}/retry`, json({})),
   del: (id: string) => req(`/runs/${id}`, { method: 'DELETE' }),
   library: () => req('/library') as Promise<LibraryItem[]>,
+  // course part-loop workspace (manual verification helpers — nothing runs automatically)
+  repoDiff: (id: string, commit = 'all') =>
+    req(`/runs/${id}/repo/diff?commit=${encodeURIComponent(commit)}`) as Promise<{ diff: string }>,
+  repoTests: (id: string) =>
+    req(`/runs/${id}/repo/tests`, { method: 'POST', body: '{}' }) as
+      Promise<{ ok: boolean; output: string; seconds: number; at: string }>,
+  repoRefresh: (id: string) =>
+    req(`/runs/${id}/repo/refresh`, { method: 'POST', body: '{}' }) as
+      Promise<{ branch: string; clean: boolean; status: string; changed_lines: number; tags: string[]; tagged: string[] }>,
 };
 
 export interface StreamFrame {
@@ -121,7 +130,8 @@ export const busy = (s: string) =>
 
 export const terminal = (s: string) => s === 'published' || s === 'failed' || s === 'rejected' || s === 'planning_done';
 export const needsDecision = (s: string) =>
-  s === 'awaiting_plan' || s === 'awaiting_review' || s === 'awaiting_refs';
+  s === 'awaiting_plan' || s === 'awaiting_review' || s === 'awaiting_refs'
+  || s === 'awaiting_code' || s === 'awaiting_lesson';
 
 export function statusColor(s: string): string {
   if (s === 'published' || s === 'planning_done') return 'var(--green)';

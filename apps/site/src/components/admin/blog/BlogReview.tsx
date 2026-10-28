@@ -143,7 +143,7 @@ export default function BlogReview({ runId, onExit, onStatusChange }: {
   const st = run?.status ?? 'loading';
   const u = run?.usage;
   const warnColor = u?.budget?.warn ? 'var(--yellow)' : 'var(--muted)';
-  const gatesBlocking = (run?.gates ?? []).some((g) => g.level === 'hard' && g.status === 'fail');
+  const gatesBlocking = (run?.gates ?? []).some((g) => g.status === 'fail');
 
   return (
     <div>
@@ -294,8 +294,7 @@ export default function BlogReview({ runId, onExit, onStatusChange }: {
                 <tbody>
                   {run.gates.map((g, j) => (
                     <tr key={j} className="border-b-2 border-dotted border-line">
-                      <td className="py-2 pr-4 mono-kbd" style={g.status === 'fail' ? { color: 'var(--red)', borderColor: 'var(--red)' } : g.status === 'warn' ? { color: 'var(--yellow)', borderColor: 'var(--yellow)' } : undefined}>{g.id}</td>
-                      <td className="py-2 pr-4">{g.level}</td>
+                      <td className="py-2 pr-4 mono-kbd" style={g.status === 'fail' ? { color: 'var(--red)', borderColor: 'var(--red)' } : g.status === 'warn' ? { color: 'var(--yellow)', borderColor: 'var(--yellow)' } : undefined}>{g.name}</td>
                       <td className="py-2 pr-4" style={g.status === 'fail' ? { color: 'var(--red)' } : undefined}>{g.status}</td>
                       <td className="py-2 text-muted">{g.detail}</td>
                     </tr>

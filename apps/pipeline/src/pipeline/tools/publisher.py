@@ -74,10 +74,14 @@ def build_frontmatter(seo: dict, cited: list[dict], run_id: str, today: date | N
         return None, msg
 
 
-def render_post(fm: Frontmatter, body: str) -> str:
-    data = fm.model_dump(mode="python", exclude_none=True)
+def render_frontmatter(data: dict, body: str) -> str:
+    """YAML frontmatter + body — the shared shape for blog posts and roadmap files."""
     head = yaml.safe_dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False, width=1000)
     return f"---\n{head}---\n\n{body.strip()}\n"
+
+
+def render_post(fm: Frontmatter, body: str) -> str:
+    return render_frontmatter(fm.model_dump(mode="python", exclude_none=True), body)
 
 
 def _git(repo: Path, *args: str) -> str:

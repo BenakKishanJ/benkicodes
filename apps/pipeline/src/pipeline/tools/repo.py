@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import re
 import subprocess
+import time
+from contextlib import suppress
+from datetime import UTC, datetime
 from pathlib import Path
 
 _REPO_CMDS = ["uv sync", "uv add", "uv run pytest", "uv run ruff check"]
@@ -134,6 +137,41 @@ class CourseRepo:
             raise RepoError(f"no such file in the repo: {rel}")
         return p.read_text(encoding="utf-8", errors="replace")
 
+    def read_head(self, rel: str) -> str | None:
+        """File content at HEAD (None if absent) — for lesson placeholders."""
+        cp = self.git("show", f"HEAD:{rel}", check=False)
+        return cp.stdout if cp.returncode == 0 else None
+
+    def tree_paths(self) -> list[str]:
+        return [f["path"] for f in self.tree()]
+
+    def files_line_numbered(self, paths: list[str], max_bytes: int = 24_000) -> dict[str, str]:
+        """Bounded line-numbered snapshots of repo files (for code/lesson prompts)."""
+        out = {}
+        used = 0
+        for rel in paths:
+            try:
+                content = self.read(rel)
+            except RepoError:
+                continue
+            if used + len(content) > max_bytes:
+                break
+            used += len(content)
+            out[rel] = content
+        return out
+
+    def commit_list(self, range_: str | None = None) -> list[dict]:
+        """Commits as [{sha, message}] (optionally a range like part-0..HEAD)."""
+        spec = range_ or "HEAD"
+        out = self.git("log", "--format=%H%x00%s", "--reverse", spec).stdout
+        commits = []
+        for line in out.splitlines():
+            if not line.strip():
+                continue
+            sha, _, msg = line.partition("\x00")
+            commits.append({"sha": sha, "message": msg})
+        return commits
+
     def write_file(self, rel: str, content: str) -> None:
         p = self.resolve(rel)
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -195,6 +233,80 @@ class CourseRepo:
 
     def default_branch(self) -> str:
         return self.git("symbolic-ref", "refs/remotes/origin/HEAD", "--short", check=False).stdout.strip()
+
+    # ------------------------------------------------------------------ part loop (03-prd §7.5)
+    def start_part(self, n: int) -> str:
+        """Create/checkout `wip/part-N` from main (or the previous tag). Returns the start sha."""
+        branch = f"wip/part-{n}"
+        if self.git("rev-parse", "--verify", branch, check=False).returncode == 0:
+            self.git("checkout", branch)
+        else:
+            base = "main"
+            if n > 0 and self.git("rev-parse", "--verify", f"refs/tags/part-{n - 1}", check=False).returncode == 0:
+                # branch from the previous tag only when it sits on main (it must,
+                # so publishing can ff-merge back); otherwise main is the safe base
+                if self.git("merge-base", "--is-ancestor", f"part-{n - 1}", "main", check=False).returncode == 0:
+                    base = f"part-{n - 1}"
+            self.git("checkout", "-b", branch, base)
+        if self.git("status", "--porcelain").stdout.strip():
+            raise RepoError(f"{branch} has uncommitted changes; commit or reset them first")
+        return self.head()
+
+    def apply_file_edit(self, path: str, op: str, content: str | None = None,
+                        edits: list[dict] | None = None) -> str:
+        """One FileEdit, applied on disk with all safety checks. Returns the new content (for diffing)."""
+        p = self.resolve(path)
+        if op == "create":
+            if p.exists():
+                raise RepoError(f"create: {path} already exists (use edit or replace)")
+            if not content or not content.strip():
+                raise RepoError(f"create: {path} would be empty")
+            self.write_file(path, content)
+            return content
+        if op == "delete":
+            if not p.exists():
+                raise RepoError(f"delete: {path} does not exist")
+            p.unlink()
+            return ""
+        if not p.exists():
+            raise RepoError(f"{op}: {path} does not exist")
+        text = p.read_text(encoding="utf-8")
+        if op == "replace":
+            if content is None:
+                raise RepoError(f"replace: {path} needs content")
+            self.write_file(path, content)
+            return content
+        # edit: every search must match exactly once
+        for e in edits or []:
+            hits = text.count(e["search"])
+            if hits == 0:
+                raise RepoError(f"edit: search text not found in {path}: {e['search'][:80]!r}")
+            if hits > 1:
+                raise RepoError(f"edit: search text matches {hits} times in {path} (must match once): {e['search'][:80]!r}")
+            text = text.replace(e["search"], e["replace"], 1)
+        self.write_file(path, text)
+        return text
+
+    def changed_lines(self) -> int:
+        """Changed (added+removed) lines vs the merge-base, for the 200-600 budget."""
+        base = self.git("merge-base", "main", "HEAD", check=False).stdout.strip() or "main"
+        stat = self.git("diff", "--numstat", base, "HEAD").stdout
+        total = 0
+        for line in stat.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 2:
+                with suppress(ValueError):
+                    total += int(parts[0]) + int(parts[1])
+        return total
+
+    def run_tests(self, timeout: float | None = None) -> dict:
+        """`uv run pytest -q` with the scrubbed env. Output recorded for the tests gate."""
+        t0 = time.monotonic()
+        cp = self.run(["uv", "run", "pytest", "-q"], timeout=timeout or 600, check=False)
+        output = ((cp.stdout or "") + (cp.stderr or ""))[-6000:]
+        return {"ok": cp.returncode == 0, "output": output,
+                "seconds": round(time.monotonic() - t0, 1),
+                "at": datetime.now(UTC).isoformat(timespec="seconds")}
 
 
 def doctor(path: Path, remote_url: str | None = None) -> dict:

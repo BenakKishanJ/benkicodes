@@ -1,11 +1,13 @@
-// Course review (planning interrupts): live activity, references review,
-// course-plan review, and the planning-done repo summary (03-prd §7.3).
-// Part-loop screens (PartWorkspace, LessonReview) join this file in Phase B.
+// Course review (planning + part-loop interrupts): live activity, references
+// review, course-plan review, the code checkpoint (PartWorkspace), the lesson
+// checkpoint (LessonReview), and part progress (03-prd §7.3–7.7).
 import { useState } from 'react';
 import { api, fmtTs, usd } from '../api';
 import { Chip, ErrBox, Field, inputCls, Panel, taCls } from '../ui';
 import { useLiveRun } from '../useLiveRun';
-import type { CoursePlanView, CourseRef, CourseRunView, RefsDecision, CoursePlanDecision } from '../types';
+import LessonReview from './LessonReview';
+import PartWorkspace from './PartWorkspace';
+import type { CoursePlanView, CourseRef, CourseRunView, RefsDecision, CoursePlanDecision, CodeReviewDecision, LessonReviewDecision } from '../types';
 
 // ---------------------------------------------------------------- refs review
 function RefsReview({ course, onSend, sending }: {
@@ -159,7 +161,7 @@ export default function CourseReview({ runId, onExit, onStatusChange }: {
   const warnColor = u?.budget?.warn ? 'var(--yellow)' : 'var(--muted)';
   const course = run?.course ?? null;
 
-  async function send(body: RefsDecision | CoursePlanDecision, tag: string) {
+  async function send(body: RefsDecision | CoursePlanDecision | CodeReviewDecision | LessonReviewDecision, tag: string) {
     setSending(tag);
     setErr(null);
     try {
@@ -240,7 +242,7 @@ export default function CourseReview({ runId, onExit, onStatusChange }: {
             <li><span className="text-muted">remote:</span> {course.repo.remote_url ?? '(none yet)'} {course.repo.remote_ok === false && <span style={{ color: 'var(--yellow)' }}>— not verified</span>}{course.repo.empty_ok === true && ' (reachable, empty ✓)'}</li>
             <li><span className="text-muted">tags:</span> <span className="font-mono">{(course.repo.tagged ?? []).join(', ')}</span></li>
           </ul>
-          <p className="meta mt-4">The part loop (code → lesson → review → publish) lands in Phase B — this repo is set up and waiting.</p>
+          <p className="meta mt-4">The part loop starts from here: code → your review → lesson → gates → your review → publish.</p>
           <p className="meta">docs feed: {course.docs?.length ?? 0} official pages · refs kept: {course.refs?.length ?? 0}</p>
         </Panel>
       )}
@@ -252,6 +254,47 @@ export default function CourseReview({ runId, onExit, onStatusChange }: {
       {course && run?.pending?.type === 'course_plan' && (
         <PlanReview course={course} sending={sending === 'plan'} onSend={(d) => send(d, 'plan')}
                     comments={comments} setComments={setComments} />
+      )}
+
+      {course && run?.pending?.type === 'code_review' && (
+        <PartWorkspace runId={runId} course={course} pending={run.pending} refresh={refresh}
+                       sending={sending} onSend={(d) => send(d, d.action)} />
+      )}
+
+      {course && run?.pending?.type === 'lesson_review' && (
+        <LessonReview runId={runId} course={course} pending={run.pending}
+                      sending={sending} onSend={(d) => send(d, d.action)} />
+      )}
+
+      {course && (course.part_n ?? 0) > 0 && run?.pending?.type !== 'code_review' && run?.pending?.type !== 'lesson_review' && (
+        <Panel title={`Part ${course.part_n} in flight`} id="part-progress-h">
+          <p className="meta">
+            {course.part?.title} — status <Chip status={st}>{st}</Chip>
+            {typeof course.code_fixes === 'number' && course.code_fixes > 0 && <span> · code fixes {course.code_fixes}/2</span>}
+            {typeof course.lesson_fixes === 'number' && course.lesson_fixes > 0 && <span> · lesson fixes {course.lesson_fixes}/2</span>}
+          </p>
+          {(course.commits?.length ?? 0) > 0 && (
+            <ul className="mt-3 space-y-1.5 font-mono text-[11px]">
+              {(course.commits ?? []).map((c) => (
+                <li key={c.sha}><span style={{ color: 'var(--accent)' }}>{c.sha.slice(0, 7)}</span> {c.message}</li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
+
+      {course && (course.published_parts?.length ?? 0) > 0 && (
+        <Panel title="Published parts" id="published-parts-h">
+          <ul className="space-y-2 text-[12px]">
+            {(course.published_parts ?? []).map((p) => (
+              <li key={p.n} className="flex flex-wrap items-baseline gap-x-3">
+                <span className="mono-kbd">{p.tag}</span>
+                <a className="underline decoration-dashed underline-offset-4 hover:text-accent" href={p.lesson_url} rel="noopener noreferrer" target="_blank">{p.title}</a>
+                <a className="text-muted" href={p.compare_url} rel="noopener noreferrer" target="_blank">diff part-{p.n - 1}...part-{p.n}</a>
+              </li>
+            ))}
+          </ul>
+        </Panel>
       )}
 
       {run && (

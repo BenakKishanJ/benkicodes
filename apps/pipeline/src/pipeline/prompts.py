@@ -158,3 +158,132 @@ def plan_course_user(req: dict, docs: list[dict], refs: list[dict], feedback: li
             f"\n\nReferences kept by the author (ref_ids must come from these):\n" +
             ("\n".join(refs_tbl) or "(none — rely on the official docs only)") +
             f"{fb}\n\nProduce the CoursePlan as one object.")
+
+
+# ================================================================ course part loop (03-prd §7.5–7.6)
+CODE_SYSTEM = (
+    f"You are writing the next increment of a hands-on course project. {DATA_RULES} "
+    "You produce 2-4 commits that together implement ONE part of the plan; each commit is independently "
+    "sensible and the last one leaves the tests passing. Rules: total changed lines stay within 200-600; "
+    "tests cover the part's behavior with a fake LLM or mocks and make NO network calls; code style is "
+    "plain stdlib + the plan's stack, no surprise frameworks; every commit message starts 'part-N: ' and "
+    "says what and why. Edits use exactly these ops: create (new file, full content), replace (full "
+    "content of an existing file), edit (search/replace pairs, each search matching exactly once), "
+    "delete. Paths are repo-relative, never .git. Declare new dependencies with add_dependencies (uv). "
+    "architecture_update is the FULL new text of docs/ARCHITECTURE.md (empty string = unchanged). "
+    "notes_for_lesson tells the lesson writer what to emphasise and which mistakes learners will make."
+)
+
+
+def code_user(project: dict, part: dict, tree: list[str], files: dict[str, str],
+              architecture: str, summary_for_next: str, doc_excerpts: list[str],
+              feedback: list[str] | None = None, prev_commits: list[dict] | None = None) -> str:
+    file_txt = []
+    for path, content in files.items():
+        numbered = "\n".join(f"{i + 1:4d}| {line}" for i, line in enumerate(content.splitlines()[:400]))
+        file_txt.append(f"--- {path} ---\n{numbered}")
+    fb = ""
+    if feedback:
+        fb = ("\n\nThe author reviewed the previous attempt and asked for these changes:\n- "
+              + "\n- ".join(feedback))
+        if prev_commits:
+            fb += "\n\nYour previous commits were reset; do not repeat their mistakes:\n"
+            fb += "\n".join(f"- {c['message']}" for c in prev_commits)
+    docs = "\n".join(doc_excerpts) or "(none)"
+    return (f"PROJECT: {project['name']} — {project['summary']}\nStack: {', '.join(project['stack'])}\n"
+            f"Final features: {'; '.join(project['final_features'])}\n\n"
+            f"docs/ARCHITECTURE.md now:\n{architecture or '(empty)'}\n\n"
+            f"THIS PART (n={part['n']}, slug={part['slug']}): {part['title']}\n"
+            f"Objectives: {', '.join(part['objectives'])}\n"
+            f"Concepts: {', '.join(part.get('concepts', [])) or '(free)'}\n"
+            f"Planned steps: {'; '.join(s['title'] + ' (' + s['intent'] + ')' for s in part['steps'])}\n\n"
+            f"Repo tree:\n" + ("\n".join(tree) or "(empty)") +
+            f"\n\nRelevant files (line-numbered):\n" + ("\n\n".join(file_txt) or "(none)") +
+            f"\n\nWhat the previous part taught (summary_for_next): {summary_for_next or '(this is part 1)'}\n\n"
+            f"Official docs excerpts (facts must agree with these):\n{docs[:6000]}"
+            f"{fb}\n\nProduce the CodeStepOutput as one object.")
+
+
+CODE_FIX_SYSTEM = CODE_SYSTEM + (
+    " The author rejected your previous commits. Apply their feedback: either new commits that "
+    "correct the code (on top of a clean branch), or the same shape as before. Be minimal — do "
+    "not rewrite what already passed review.")
+
+
+LESSON_SYSTEM_TMPL = (
+    "You write the lesson for ONE part of a hands-on programming course, in the author's voice, "
+    "following the style of project-based courses like Full Stack Open: warm, direct, second person, "
+    "no filler, no 'in this article', no 'let's dive in'. {data_rules} "
+    "The reader codes along while the commits already exist — you teach the diff that was just merged. "
+    "Structure: a short '## What we add' paragraph tied to this part's objectives; one '## How it works' "
+    "concept section; then '## Step by step' sections that follow the commits in order, each naming the "
+    "commit it matches; a short '## Wrap-up'. "
+    "CODE RULES: never paste large code from the repo — reference it with a placeholder like "
+    "{{{{code:src/app.py#L10-34}}}} (the pipeline expands it from the real file; ranges must be accurate, "
+    "max 40 lines). Only type out short inline code or shell commands yourself, at most 8 lines per block, "
+    "with the fence language set. EXERCISES: end with '## Exercises' — 2 to 4 exercises, each with a "
+    "bolded task, 'acceptance:' criteria as a list, and at least one 'hint:'. "
+    "CITATIONS: factual statements from the docs carry [S#] markers matching the provided source list. "
+    "Length: {lo}-{hi} words."
+)
+
+
+def lesson_system(voice: str, banned: list[str]) -> str:
+    ban = f"\nNever use these filler phrases: {', '.join(banned[:30])}." if banned else ""
+    return LESSON_SYSTEM_TMPL.format(data_rules=DATA_RULES, lo=800, hi=1800) + f"\n\nAuthor voice notes:\n{voice}{ban}"
+
+
+def lesson_user(part: dict, commits: list[dict], files: dict[str, str], notes_for_lesson: str,
+                doc_excerpts: list[str], glossary: dict[str, str], summary_for_next: str) -> str:
+    file_txt = []
+    for path, content in files.items():
+        numbered = "\n".join(f"{i + 1:4d}| {line}" for i, line in enumerate(content.splitlines()[:400]))
+        file_txt.append(f"--- {path} ---\n{numbered}")
+    commit_txt = "\n".join(f"- {c['sha'][:7]} {c['message']}" for c in commits)
+    docs = "\n".join(f"[{d['id']}] {d['title']} — {d['url']}\n{d['excerpt']}" for d in doc_excerpts)
+    glo = "\n".join(f"- {k}: {v}" for k, v in glossary.items()) or "(empty — define new terms as you meet them)"
+    return (f"PART n={part['n']}: {part['title']} (slug {part['slug']})\n"
+            f"Objectives — every one must be taught: {', '.join(part['objectives'])}\n"
+            f"Concepts: {', '.join(part.get('concepts', [])) or '(free)'}\n"
+            f"notes_for_lesson: {notes_for_lesson or '(none)'}\n\n"
+            f"Commits this part (teach them in order):\n{commit_txt}\n\n"
+            f"Files at HEAD (line-numbered — use their exact numbers in {{code:…#Ln-m}} placeholders):\n"
+            + ("\n\n".join(file_txt) or "(none)") +
+            f"\n\nOfficial docs (cite as [S#]):\n{docs[:8000]}\n\n"
+            f"Course glossary so far:\n{glo}\n\n"
+            f"What the previous part told learners to remember: {summary_for_next or '(this is part 1)'}\n\n"
+            "Write the lesson Markdown. No H1 (the page has one); start with '## What we add'.")
+
+
+QUIZ_SYSTEM = (
+    f"You write quiz questions for one part of a hands-on programming course. {DATA_RULES} "
+    "3-6 questions, each mapped to one of the part's objectives. Single-choice unless the concept "
+    "genuinely needs multiple answers. Distractors must be plausible misconceptions, not jokes; no "
+    "'all of the above' or 'none of the above'; correct answers spread across option positions; every "
+    "question gets an explanation of WHY the right answer is right and an optional hint. id fields are "
+    "short slugs like q1."
+)
+
+
+def quiz_user(part: dict, glossary: dict[str, str]) -> str:
+    return (f"Part n={part['n']}: {part['title']}\nObjectives: {', '.join(part['objectives'])}\n"
+            f"Concepts: {', '.join(part.get('concepts', [])) or '(free)'}\n\n"
+            "Produce the questions as one object.")
+
+
+LESSON_CHECK_SYSTEM = (
+    f"You are a strict, fair technical reviewer of a course lesson that teaches code that already exists "
+    f"in a repo. {DATA_RULES} Score 1-5 on accuracy, clarity, code-correctness, coverage, tone; list "
+    "concrete issues with location and fix; list statements not supported by the lesson's own context or "
+    "the cited docs under unsupported_claims (empty if none); write a meta description of 70-160 chars "
+    "for search; and write summary_for_next: at most 120 words the next part can assume (facts the "
+    "learner now knows, key names/commands introduced)."
+)
+
+
+def lesson_check_user(part: dict, lesson: str, commits: list[dict], doc_excerpts: list[str]) -> str:
+    commit_txt = "\n".join(f"- {c['sha'][:7]} {c['message']}" for c in commits)
+    docs = "\n".join(f"[{d['id']}] {d['title']} — {d['url']}\n{d['excerpt'][:400]}" for d in doc_excerpts)
+    return (f"PART n={part['n']}: {part['title']}\nObjectives: {', '.join(part['objectives'])}\n"
+            f"Commits taught:\n{commit_txt}\n\nOfficial docs:\n{docs[:6000]}\n\nLesson:\n\n{lesson}\n\n"
+            "Review it as one object.")

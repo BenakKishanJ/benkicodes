@@ -52,10 +52,29 @@ class CourseState(TypedDict, total=False):
     plan: dict                        # CoursePlan as dict; slugs/order frozen after plan_review
     plan_feedback: list[str]
     repo: dict                        # {path, name, remote_url, remote_ok, empty_ok, tagged: [part-0]}
-    # -- part loop (Phase B fills these in)
-    part_n: int                       # part currently in flight
+    # -- part loop (03-prd §7.5–7.7)
+    part_n: int                       # part currently in flight (0 = none started)
+    part: dict                        # the PlannedPart dict in flight
+    part_start_sha: str               # HEAD when the part started (branch-reset anchor)
+    code: dict                        # CodeStepOutput as dict
     code_fixes: int                   # code_fix rounds used this part (max 2)
+    code_feedback: list[str]          # Ben's code_review comments for the next code_step
+    commits: list[dict]               # applied commits this part: [{sha, message}]
+    tests: dict | None                # last repo/tests run: {ok, output, at}
+    lesson_md: str                    # lesson body with {{code:…}} placeholders
+    lesson_feedback: list[str]        # Ben's lesson_review comments for the next lesson_fix
+    prev_lesson_md: str | None
+    lesson_html: str                  # rendered lesson (snippets expanded) for review
+    module_md: str                    # built module .md (frontmatter + expanded lesson), reused by publish
+    quiz: list[dict]                  # QuizQuestion dicts for the module frontmatter
+    check: dict                       # LessonCheckOutput as dict
+    gates: list[dict]
+    summary_for_next: str             # carried from lesson_check
+    glossary: dict[str, str]          # term -> one-line definition (accumulated)
     lesson_fixes: int                 # lesson_fix rounds used this part
+    review_rounds: int                # lesson_review rounds this part
+    decision: dict | None
+    review_note: str
     published_parts: list[dict]       # per-part: {n, slug, tag, tag_url, compare_url, lesson_url}
     # -- plumbing (shared with BlogState semantics)
     events: Annotated[list[dict], operator.add]

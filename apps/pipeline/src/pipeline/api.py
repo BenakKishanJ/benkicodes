@@ -12,6 +12,7 @@ import uuid
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -28,8 +29,10 @@ from .gateway.client import Gateway, get_gateway
 from .gateway.models import price_mtok
 from .graphs.blog import build_blog_graph
 from .graphs.course import PLANNING_DONE, build_course_graph
-from .schemas import CoursePlanDecision, CourseRunRequest, Decision, PlanDecision, RefsDecision, RunRequest
+from .schemas import (CodeReviewDecision, CoursePlanDecision, CourseRunRequest, Decision,
+                      LessonReviewDecision, PlanDecision, RefsDecision, RunRequest)
 from .store import RunStore
+from .tools.repo import CourseRepo
 
 TERMINAL = {"published", "rejected", "failed", PLANNING_DONE}
 _md = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable("table")  # raw HTML disabled: LLM output is untrusted
@@ -88,8 +91,9 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
             return "working" if st in (None, "awaiting_plan", "awaiting_review") else st
         p = pending_of(snap)
         if p:
-            return {"plan": "awaiting_plan", "course_plan": "awaiting_plan",
-                    "refs": "awaiting_refs"}.get(p.get("type"), "awaiting_review")
+            return {"plan": "awaiting_plan", "course_plan": "awaiting_plan", "refs": "awaiting_refs",
+                    "code_review": "awaiting_code", "lesson_review": "awaiting_lesson"
+                    }.get(p.get("type"), "awaiting_review")
         if row.get("status") == "paused_budget":
             return "paused_budget"
         if row.get("error"):
@@ -130,11 +134,30 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
             "calls": list(reversed(v.get("calls", [])))[:12],
         }
         if row["mode"] == "course":
+            # manual test runs live in a side file so the view is fresh mid-interrupt
+            try:
+                tests = json.loads((s.data_dir / "courses" / rid / "tests.json").read_text())
+            except (OSError, ValueError):
+                tests = v.get("tests")
             out["course"] = {"docs": v.get("docs", []), "refs": v.get("refs", []),
                              "inspired_by": v.get("inspired_by", []),
                              "repo": v.get("repo"), "plan": v.get("plan"),
                              "plan_feedback": v.get("plan_feedback", []),
-                             "published_parts": v.get("published_parts", [])}
+                             "published_parts": v.get("published_parts", []),
+                             # -- part loop in flight
+                             "part_n": v.get("part_n"), "part": v.get("part"),
+                             "part_start_sha": v.get("part_start_sha", ""),
+                             "code": v.get("code"), "commits": v.get("commits", []),
+                             "tests": tests, "code_fixes": v.get("code_fixes", 0),
+                             "lesson_md": v.get("lesson_md", ""),
+                             "lesson_html": v.get("lesson_html", ""),
+                             "lesson_html_rendered": _md.render(v.get("lesson_html", "")) if v.get("lesson_html") else "",
+                             "lesson_fixes": v.get("lesson_fixes", 0),
+                             "quiz": v.get("quiz", []),
+                             "check": (lambda c: c if (c.get("scores")) else None)(v.get("check") or {}),
+                             "gates": v.get("gates", []),
+                             "glossary": v.get("glossary", {}),
+                             "summary_for_next": v.get("summary_for_next", "")}
         return out
 
     # ---------------------------------------------------------------- routes
@@ -245,19 +268,68 @@ def create_app(settings: Settings | None = None, gw: Gateway | None = None, chec
         if not p:
             raise HTTPException(409, "run is not waiting for input")
         schema = {"plan": PlanDecision, "review": Decision, "refs": RefsDecision,
-                  "course_plan": CoursePlanDecision}.get(p.get("type"))
+                  "course_plan": CoursePlanDecision, "code_review": CodeReviewDecision,
+                  "lesson_review": LessonReviewDecision}.get(p.get("type"))
         if schema is None:
             raise HTTPException(409, f"unknown interrupt type: {p.get('type')}")
         try:
             decision = schema.model_validate(body)
         except ValidationError as e:
             raise HTTPException(422, e.errors()[0]["msg"]) from e
-        except ValidationError as e:
-            raise HTTPException(422, e.errors()[0]["msg"]) from e
         with lock:
             running.add(rid)
         pool.submit(drive, rid, Command(resume=decision.model_dump()))
         return {"ok": True}
+
+    def _course_repo(rid: str) -> CourseRepo:
+        """The run's course repo, for the manual-workspace endpoints."""
+        v = graph_for(rid).get_state(cfg(rid)).values or {}
+        rp = (v.get("repo") or {}).get("path")
+        if not rp or not Path(rp).exists():
+            raise HTTPException(409, "no course repo for this run yet")
+        return CourseRepo(Path(rp), cmds=s.repo_cmds, timeout=s.repo_cmd_timeout)
+
+    @app.get("/runs/{rid}/repo/diff", dependencies=[Depends(auth)])
+    def repo_diff(rid: str, commit: str = "all"):
+        """Per-commit diff, or `commit=all` for the part-cumulative diff."""
+        repo = _course_repo(rid)
+        v = graph_for(rid).get_state(cfg(rid)).values or {}
+        if commit == "all":
+            start = v.get("part_start_sha") or "main"
+            d = repo.git("diff", f"{start}..HEAD", "--patch", "--no-color").stdout
+        else:
+            if not re.fullmatch(r"[0-9a-f]{4,40}", commit):
+                raise HTTPException(422, "commit must be a hex sha")
+            d = repo.git("show", commit, "--patch", "--no-color", "--format=short").stdout
+        return {"diff": d[:120_000]}
+
+    @app.post("/runs/{rid}/repo/tests", dependencies=[Depends(auth)])
+    def repo_tests(rid: str):
+        """Run `uv run pytest -q` on demand (never automatic). The result is written to
+        the run's tests.json — the code_review/part-gates nodes read it fresh from disk
+        (state updates are not safe while an interrupt is pending)."""
+        if rid in running:
+            raise HTTPException(409, "run is busy")
+        repo = _course_repo(rid)
+        result = repo.run_tests()
+        part_n = (graph_for(rid).get_state(cfg(rid)).values or {}).get("part_n")
+        result = {**result, "part_n": part_n}
+        base = s.data_dir / "courses" / rid
+        base.mkdir(parents=True, exist_ok=True)
+        (base / "tests.json").write_text(json.dumps(result), encoding="utf-8")
+        return {"ok": result["ok"], "output": result["output"], "seconds": result["seconds"], "at": result["at"]}
+
+    @app.post("/runs/{rid}/repo/refresh", dependencies=[Depends(auth)])
+    def repo_refresh(rid: str):
+        """Re-read the repo after manual edits: branch, cleanliness, per-file status, tag list."""
+        repo = _course_repo(rid)
+        branch = repo.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        dirty = repo.status()
+        v = graph_for(rid).get_state(cfg(rid)).values or {}
+        tags = repo.git("tag", "--list", "part-*", "--sort=version:refname").stdout.split()
+        return {"branch": branch, "clean": not dirty, "status": dirty[:4000],
+                "changed_lines": repo.changed_lines(), "tags": tags,
+                "tagged": (v.get("repo") or {}).get("tagged", [])}
 
     @app.post("/runs/{rid}/budget", dependencies=[Depends(auth)])
     def set_budget(rid: str, body: dict):
