@@ -122,3 +122,19 @@ def test_render_template(tmp_path):
     assert (dest / "src" / "demo_course" / "__init__.py").exists()
     with pytest.raises(FileExistsError):
         render_course_template(tpl, dest, name="demo-course", project="x", summary="y")
+
+
+def test_render_template_long_or_quoted_summary(tmp_path):
+    """Long summaries must not break the generated repo's own lint; quotes must not break TOML."""
+    tpl = Path("templates/course-repo")
+    long_summary = ("A command-line todo app built step by step with Python, argparse, JSON "
+                    'persistence, and pytest, with "quotes" that would break plain TOML. ' * 2).strip()
+    dest = tmp_path / "out"
+    render_course_template(tpl, dest, name="demo-course", project="Demo", summary=long_summary, github_owner="ben")
+    init_py = (dest / "src" / "demo_course" / "__init__.py").read_text()
+    assert all(len(line) <= 110 for line in init_py.splitlines())
+    toml = (dest / "pyproject.toml").read_text()
+    assert '\\"quotes\\"' in toml  # TOML-safe escaping
+    import tomllib
+    parsed = tomllib.loads(toml)
+    assert 'quotes' in parsed["project"]["description"]

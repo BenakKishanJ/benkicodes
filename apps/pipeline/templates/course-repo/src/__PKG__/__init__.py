@@ -1,1 +1,4 @@
-"""__PROJECT__: __SUMMARY__"""
+"""__PROJECT__
+
+__SUMMARY_WRAP__
+"""

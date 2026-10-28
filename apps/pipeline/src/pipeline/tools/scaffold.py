@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import textwrap
 from pathlib import Path
 
 TXT_SUFFIXES = {".md", ".toml", ".py", ".txt", ".yml", ".yaml", ".cfg", ".ini", ".example", ".rst"}
@@ -33,10 +34,15 @@ def render_course_template(template_dir: Path, dest: Path, *, name: str, project
     if dest.exists():
         raise FileExistsError(f"refusing to overwrite existing repo dir: {dest}")
     pkg = package_name(name)
+    summary = summary.replace("\n", " ")
     sub = {
         "__NAME__": name,
         "__PROJECT__": project,
-        "__SUMMARY__": summary.replace("\n", " "),
+        "__SUMMARY__": summary,
+        # safe forms: TOML-escaped for pyproject, wrapped so generated .py
+        # files never exceed the template repo's own ruff line length
+        "__SUMMARY_TOML__": summary.replace("\\", "\\\\").replace('"', '\\"'),
+        "__SUMMARY_WRAP__": "\n".join(textwrap.wrap(summary or project, width=96) or [""]),
         "__PKG__": pkg,
         "__GITHUB__": github_owner or "benkicodes",
     }
