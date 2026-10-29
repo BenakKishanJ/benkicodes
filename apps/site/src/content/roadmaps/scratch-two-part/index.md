@@ -13,11 +13,8 @@ outcomes:
 - Persist notes to a JSON file using pathlib and json
 - Write comprehensive pytest suite covering all commands
 tags: []
-status: in-progress
-planned:
-- slug: part-2
-  title: 'Part 2: Advanced Commands and Testing'
-  estimatedMinutes: 120
+status: complete
+planned: []
 project:
   repo: https://github.com/BenakKishanJ/scratch-two-part
   defaultBranch: main
@@ -32,7 +29,7 @@ project:
   - json
   summary: A command-line notes app built with argparse and JSON storage, delivered in two progressive parts.
 inspiredBy: []
-lastReviewed: 2026-10-28
+lastReviewed: 2026-10-29
 version: '1.0'
 draft: false
 featured: false
