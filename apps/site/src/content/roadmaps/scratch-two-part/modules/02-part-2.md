@@ -21,7 +21,7 @@ code:
   compareUrl: https://github.com/BenakKishanJ/scratch-two-part/compare/part-1...part-2
   treeUrl: https://github.com/BenakKishanJ/scratch-two-part/tree/part-2
   commits:
-  - sha: 4e75658
+  - sha: "4e75658"
     message: 'part-2: Implement delete and edit commands with storage validation and tests'
     url: https://github.com/BenakKishanJ/scratch-two-part/commit/4e75658a81b1532d9e0a28538bf310dbca5cf766
   - sha: 67205ad
