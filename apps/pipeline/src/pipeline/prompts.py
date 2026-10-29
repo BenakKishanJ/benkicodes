@@ -9,6 +9,8 @@ DATA_RULES = (
 
 LENGTH_WORDS = {"short": (600, 900), "medium": (1000, 1500), "long": (1700, 2400)}
 
+RETRY_MARKER = "[edit retry]"   # marks a code_feedback entry produced by an apply_commits failure
+
 
 def wrap_sources(sources: list[dict], limit: int) -> str:
     blocks = []
@@ -186,6 +188,11 @@ def code_user(project: dict, part: dict, tree: list[str], files: dict[str, str],
     if feedback:
         fb = ("\n\nThe author reviewed the previous attempt and asked for these changes:\n- "
               + "\n- ".join(feedback))
+        if any(x.startswith(RETRY_MARKER) for x in feedback):
+            fb += ("\n\nEDIT-OP RULES (your last attempt was rejected by git):\n"
+                   "- `search` must match the file EXACTLY, character-for-character — every quote, "
+                   "bracket and space. Copy it straight from the line-numbered listing above.\n"
+                   "- When in doubt, use `replace` (whole file) or `create` instead of `edit`.")
         if prev_commits:
             fb += "\n\nYour previous commits were reset; do not repeat their mistakes:\n"
             fb += "\n".join(f"- {c['message']}" for c in prev_commits)

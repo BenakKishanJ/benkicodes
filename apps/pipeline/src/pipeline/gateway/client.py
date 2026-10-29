@@ -146,7 +146,11 @@ class OpenRouterGateway:
             chat = self._chat_task_model(task, model_id, temp, structured=True)
             for attempt in (1, 2):     # two validation retries, then fail over
                 runner = chat.with_structured_output(schema, method="json_schema", include_raw=True)
-                out = runner.invoke([("system", system), ("user", prompt)])
+                try:
+                    out = runner.invoke([("system", system), ("user", prompt)])
+                except Exception as e:  # noqa: BLE001 provider rejects params / rate limit -> fail over
+                    last_err = f"{type(e).__name__}: {e}"[:600]
+                    break
                 u = _tokens_cost(self.catalog(), model_id, out.get("raw"))
                 total = {k: total[k] + u.get(k, 0) for k in total}
                 if out.get("parsed") is not None:

@@ -41,7 +41,7 @@ PLANNING_DONE = "planning_done"
 MAX_CODE_FIXES = 2
 MAX_LESSON_FIXES = 2
 DIFF_CHARS = 8000
-RETRY_MARKER = "[edit retry]"   # marks a code_feedback entry produced by an apply_commits failure
+RETRY_MARKER = P.RETRY_MARKER   # defined in prompts (code_user detects it in feedback)
 
 
 def _strip_fence(text: str) -> str:
@@ -76,6 +76,17 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
         base.mkdir(parents=True, exist_ok=True)
         for p in pages:
             (base / f"{p['id']}.txt").write_text(p["text"], encoding="utf-8")
+
+    def _part_doc_urls(state: dict) -> list[str]:
+        """The part's cited docs; a planner that omitted doc_urls falls back to the
+        seeded official docs (the module schema needs >= 1 source per part)."""
+        urls = [u for u in (state.get("part") or {}).get("doc_urls", []) if u]
+        if urls:
+            return urls
+        docs = state.get("docs", [])
+        seeded = set(state.get("inputs", {}).get("docs_urls") or [])
+        pref = [d["url"] for d in docs if d["url"] in seeded]
+        return (pref or [d["url"] for d in docs])[:3]
 
     def _doc_excerpts(rid: str, docs: list[dict], urls: list[str], chars: int = 3500) -> list[dict]:
         """Docs entries for the cited urls, with bigger excerpts read from the disk cache.
@@ -235,13 +246,19 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
                 retry_note = "\n\nYour previous answer was invalid. Return a corrected CoursePlan."
                 continue
             docs_urls = {d["url"] for d in state.get("docs", [])}
+            docs_by_id = {d["id"]: d["url"] for d in state.get("docs", [])}
+            for p in o.parts:  # tolerate planners that cite doc ids instead of urls
+                p.doc_urls = [docs_by_id.get(x.strip(), x.strip()) for x in p.doc_urls]
             ref_ids = {r["id"] for r in state.get("refs", [])}
             bad_u = sorted({x for p in o.parts for x in p.doc_urls if x not in docs_urls})
             bad_r = sorted({x for p in o.parts for x in p.ref_ids if x not in ref_ids})
-            if not bad_u and not bad_r:
+            no_docs = [p.n for p in o.parts if not p.doc_urls]
+            if not bad_u and not bad_r and not no_docs:
                 break
             invalid = "; ".join(filter(None, [
                 f"doc_urls not in the docs map: {', '.join(bad_u)}" if bad_u else "",
+                f"parts with no doc_urls at all (cite >= 1 official docs page per part): n="
+                f"{', n='.join(str(x) for x in no_docs)}" if no_docs else "",
                 f"ref_ids not in the kept references: {', '.join(bad_r)}" if bad_r else ""]))
             events.append(ev("plan_course", f"plan invalid (attempt {attempt}): {invalid}", "warn"))
             retry_note = f"\n\nYour previous plan violated these constraints, fix them:\n- {invalid}"
@@ -275,6 +292,9 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
                 return {"plan_feedback": [evs["msg"]], "status": "planning", "events": [evs]}
             bad_r = sorted({x for p in plan.parts for x in p.ref_ids
                             if x not in {r["id"] for r in state.get("refs", [])}})
+            docs_by_id = {dd["id"]: dd["url"] for dd in state.get("docs", [])}
+            for p in plan.parts:  # tolerate doc ids cited as urls (same as plan_course)
+                p.doc_urls = [docs_by_id.get(x.strip(), x.strip()) for x in p.doc_urls]
             bad_u = sorted({x for p in plan.parts for x in p.doc_urls
                             if x not in {dd["url"] for dd in state.get("docs", [])}})
             if bad_r or bad_u:
@@ -355,7 +375,7 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
                         repo.files_line_numbered(repo.tree_paths()), arch,
                         state.get("summary_for_next", ""),
                         [d["excerpt"][:2500] for d in _doc_excerpts(state["run_id"], state.get("docs", []),
-                                                                    state["part"].get("doc_urls", []), 2500)],
+                                                                    _part_doc_urls(state), 2500)],
                         feedback=state.get("code_feedback") or None,
                         prev_commits=state.get("commits") or None),
             budget=cap, spent=spent)
@@ -410,16 +430,18 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
             return {"commits": commits, "status": "reviewing_code", "code_feedback": [],
                     "events": events + [ev("apply_commits", f"{len(commits)} commit(s) applied, {changed} changed lines{note}",
                                             "warn" if note else "info")]}
-        except Exception as e:  # noqa: BLE001 — one retry with the precise error, then fail clean
+        except Exception as e:  # noqa: BLE001 — up to two planner retries with the precise error, then fail clean
             err = f"{type(e).__name__}: {e}"
             repo.git("checkout", f"wip/part-{n}")
             repo.git("reset", "--hard", state.get("part_start_sha", "HEAD"))
             repo.git("clean", "-fd")
             fb = state.get("code_feedback") or []
-            already_retried = bool(fb and fb[-1].startswith(RETRY_MARKER))
-            if already_retried:
-                raise RuntimeError(f"edits failed again after a retry; branch reset to {state.get('part_start_sha', 'HEAD')[:7]}: {err[:400]}") from e
-            events.append(ev("apply_commits", f"edits rejected ({err[:200]}) — retrying once from a clean branch", "warn"))
+            n_retried = sum(1 for x in fb if x.startswith(RETRY_MARKER))
+            if n_retried >= 2:
+                raise RuntimeError(
+                    f"edits failed after {n_retried} planner retries; branch reset to "
+                    f"{state.get('part_start_sha', 'HEAD')[:7]}: {err[:400]}") from e
+            events.append(ev("apply_commits", f"edits rejected ({err[:200]}) — retrying ({n_retried + 1}) from a clean branch", "warn"))
             return {"code_feedback": fb + [f"{RETRY_MARKER}\n{err[:600]}"],
                     "status": "coding", "events": events}
 
@@ -485,7 +507,7 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
         touched = sorted({e["path"] for cm in state.get("code", {}).get("commits", []) for e in cm["edits"]})
         files = repo.files_line_numbered([p for p in repo.tree_paths()
                                           if p in touched or p.startswith("tests/")], max_bytes=30_000)
-        doc_ex = _doc_excerpts(state["run_id"], state.get("docs", []), state["part"].get("doc_urls", []))
+        doc_ex = _doc_excerpts(state["run_id"], state.get("docs", []), _part_doc_urls(state))
         glossary = state.get("glossary") or {}
         text, u = gw.text("write", P.lesson_system(voice, banned),
                           P.lesson_user(state["part"], state.get("commits", []), files,
@@ -531,7 +553,7 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
 
     def lesson_check(state: CourseState):
         cap, spent = _guard(state, "lesson_check")
-        doc_ex = _doc_excerpts(state["run_id"], state.get("docs", []), state["part"].get("doc_urls", []), 2500)
+        doc_ex = _doc_excerpts(state["run_id"], state.get("docs", []), _part_doc_urls(state), 2500)
         c, u = gw.structured("check", LessonCheckOutput, P.LESSON_CHECK_SYSTEM,
                              P.lesson_check_user(state["part"], state["lesson_md"],
                                                  state.get("commits", []), doc_ex),
@@ -562,7 +584,7 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
         try:
             sources = [{"title": d["title"], "url": d["url"]}
                        for d in _doc_excerpts(state["run_id"], state.get("docs", []),
-                                              state["part"].get("doc_urls", []), 200)]
+                                              _part_doc_urls(state), 200)]
             if not sources:
                 fm_error = "the part cites no official docs (doc_urls empty) — module schema needs >= 1 source"
             resources = [dict(r) for r in state.get("refs", []) if r["id"] in set(state["part"].get("ref_ids", []))]
@@ -586,7 +608,7 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
             lesson=lesson_html, module_fm_error=fm_error, snippet_problems=problems,
             inline_problems=[], commits=state.get("commits", []), tags_ok=tags_ok,
             sources=[{**d, "text": d.get("excerpt", "")} for d in _doc_excerpts(state["run_id"], state.get("docs", []),
-                                                                                   state["part"].get("doc_urls", []), 200)],
+                                                                                   _part_doc_urls(state), 200)],
             cited=G.cited_ids(state["lesson_md"]), critique=state.get("check"),
             objectives=state["part"]["objectives"], resources=resources, kept_urls=kept_urls,
             tests=_tests_of(state), similarity_limit=s.max_similarity,
@@ -605,14 +627,17 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
                          "hard_fail": hard[0]["detail"] if hard else None})
         d = LessonReviewDecision.model_validate(raw)
         if d.action == "approve":
-            if hard:
+            if hard and not (d.edited_md or "").strip():
                 return {"review_note": f"Cannot publish: {hard[0]['name']} — {hard[0]['detail']}",
                         "events": [ev("lesson_review", "approve blocked by a hard gate", "warn")]}
-            upd: dict = {"decision": d.model_dump(), "review_note": "", "status": "publishing",
+            upd: dict = {"decision": None, "review_note": "", "status": "publishing",
                          "events": [ev("lesson_review", "lesson approved — publishing the part")]}
             if d.edited_md and d.edited_md.strip() != state["lesson_md"].strip():
                 upd["lesson_md"] = d.edited_md.strip() + "\n"   # Ben's edits win; gates re-run in publish
                 upd["events"] = [ev("lesson_review", "applied the author's direct edits")] + upd["events"]
+                if hard:  # a hard gate failed on the pre-edit lesson — re-run the gates on the edited text first
+                    upd["status"] = "gating"
+                    upd["events"] += [ev("lesson_review", "re-running gates on the edited lesson", "warn")]
             return upd
         if d.action == "back_to_code":
             fixes = state.get("code_fixes", 0) + 1   # counts against the code budget
@@ -634,6 +659,8 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
         st = state.get("status")
         if st == "publishing":
             return "publish_part"
+        if st == "gating":
+            return "part_gates"   # author edits applied over a hard fail — re-gate the edited text
         if st == "reviewing_code":
             return "code_review"
         if st == "fixing_lesson":
@@ -677,7 +704,7 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
         if problems:
             raise RuntimeError("lesson snippets unresolved at publish: " + "; ".join(problems[:3]))
         sources = [{"title": x["title"], "url": x["url"]}
-                   for x in _doc_excerpts(state["run_id"], state.get("docs", []), state["part"].get("doc_urls", []), 200)]
+                   for x in _doc_excerpts(state["run_id"], state.get("docs", []), _part_doc_urls(state), 200)]
         resources = [dict(r) for r in state.get("refs", []) if r["id"] in set(state["part"].get("ref_ids", []))]
         code = {"startTag": f"part-{n - 1}", "endTag": f"part-{n}", "compareUrl": urls["compare"],
                 "treeUrl": urls["tree"],
@@ -698,7 +725,7 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
             "lesson_url": RM.lesson_url(s.site_base_url, course_slug, f"{n:02d}-{state['part']['slug']}"),
             "site_commit": None, "paths": []}]
         index_md = RM.build_index_md(plan=plan.model_dump(), req=req,
-                                     repo_url=(state.get("repo") or {}).get("remote_url"),
+                                     repo_url=RM._https_base((state.get("repo") or {}).get("remote_url") or ""),
                                      kept_refs=state.get("refs", []), inspired_by_ids=state.get("inspired_by", []),
                                      refs=state.get("refs", []), published=published,
                                      run_id=state["run_id"])
@@ -754,8 +781,9 @@ def build_course_graph(gw: Gateway | None, s: Settings, checkpointer,
     g.add_edge("part_gates", "lesson_review")
     g.add_conditional_edges("lesson_review", route_lesson_review,
                             {"publish_part": "publish_part", "code_review": "code_review",
-                             "lesson_fix": "lesson_fix", "lesson_review": "lesson_review"})
-    g.add_edge("lesson_fix", "part_gates")
+                             "lesson_fix": "lesson_fix", "lesson_review": "lesson_review",
+                             "part_gates": "part_gates"})
+    g.add_edge("lesson_fix", "lesson_check")   # re-score the revised lesson (fresh critic, not stale)
     g.add_conditional_edges("publish_part", more_parts,
                             {"select_part": "select_part", "complete": "complete"})
     g.add_edge("complete", END)

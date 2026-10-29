@@ -1,6 +1,14 @@
 # Per-task model routing (03-prd §4.2). The admin settings screen can change
 # these later; model ids are never hard-coded in pipeline code.
 #
+# All-free routing (key has no paid credit). Two hard constraints, verified
+# empirically against the live API on 2026-10-28 (the catalog's
+# `supported_parameters` overstates free-variant reality):
+#   1. `structured` tasks (plan, plan_code, fast, check) go out with OpenRouter
+#      `require_parameters: True` + json_schema — only nemotron-3.5-super-vl:free,
+#      dots-3-note-preview:free and the openrouter/free router actually serve them.
+#   2. thinkingmachines/inkling*:free are gated to recognized agentic harnesses (403).
+#
 # Rules of thumb (PRD 03 §2.1):
 #   fast     - cheap, valid structured output (quizzes, small jobs)
 #   plan     - reasoning + structured output
@@ -10,27 +18,27 @@
 #   research - web-search enabled survey (OpenRouter web plugin, see `plugins`)
 tasks:
   fast:
-    model: nvidia/nemotron-3-super-120b-a12b:free   # structured-capable free model
-    fallbacks: [deepseek/deepseek-v4-flash]
+    model: nvidia/nemotron-3.5-super-vl:free         # structured-capable, 1M ctx
+    fallbacks: [dots-studio/dots-3-note-preview:free]
     temperature: 0.2
   plan:
-    model: deepseek/deepseek-v4-flash
-    fallbacks: [z-ai/glm-5.3-flash]
+    model: dots-studio/dots-3-note-preview:free      # reasoning + structured, 512k ctx
+    fallbacks: [nvidia/nemotron-3.5-super-vl:free]
     temperature: 0.3
   plan_code:
-    model: deepseek/deepseek-v4-flash
-    fallbacks: [z-ai/glm-5.3-flash]
+    model: dots-studio/dots-3-note-preview:free      # reasoning + structured, agent workflows
+    fallbacks: [nvidia/nemotron-3.5-super-vl:free]
     temperature: 0.3
   write:
-    model: deepseek/deepseek-v4-flash
-    fallbacks: [nvidia/nemotron-3-super-120b-a12b:free]
+    model: dots-studio/dots-3-note-preview:free      # long-form; may burn tokens on reasoning (empty -> next)
+    fallbacks: [nvidia/nemotron-3-ultra-550b-a55b:free]
     temperature: 0.7
   check:
-    model: z-ai/glm-5.3-flash                        # different family from write
-    fallbacks: [deepseek/deepseek-v4.1-flash]
+    model: nvidia/nemotron-3.5-super-vl:free         # critic (structured), different family from write
+    fallbacks: [openrouter/free]
     temperature: 0.2
   research:
-    model: z-ai/glm-5.3-flash       # web plugin works via OpenRouter's tool pipe
-    fallbacks: [deepseek/deepseek-v4-flash]
+    model: dots-studio/dots-3-note-preview:free      # agentic tool use (web plugin pipe)
+    fallbacks: [nvidia/nemotron-3.5-super-vl:free]
     temperature: 0.3
     plugins: [{ id: web }]          # OpenRouter web search plugin on every call

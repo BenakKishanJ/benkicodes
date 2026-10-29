@@ -74,9 +74,33 @@ def build_frontmatter(seo: dict, cited: list[dict], run_id: str, today: date | N
         return None, msg
 
 
+# The JS yaml parser (Astro's content layer) reads plain scalars like `4e75658`
+# as YAML floats (4e+75658 -> Infinity), which fails string schemas. Quote any
+# string a JS YAML parser could mistake for a number.
+_JS_NUMERIC_RE = re.compile(
+    r"""^(?:[-+]?(?:[0-9][0-9_]*\.[0-9_]*|\.[0-9_]+|[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)?
+         |[-+]?\.(?:inf|Inf|INF)
+         |\.(?:nan|NaN|NAN)
+         |[-+]?0[xX][0-9a-fA-F_]+
+         |0[oO]?[0-7_]+)$""", re.VERBOSE)
+
+
+class _SafeDumper(yaml.SafeDumper):
+    pass
+
+
+def _represent_quoted_str(dumper, data):
+    style = '"' if _JS_NUMERIC_RE.match(data) else None
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=style)
+
+
+_SafeDumper.add_representer(str, _represent_quoted_str)
+
+
 def render_frontmatter(data: dict, body: str) -> str:
     """YAML frontmatter + body — the shared shape for blog posts and roadmap files."""
-    head = yaml.safe_dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False, width=1000)
+    head = yaml.dump(data, Dumper=_SafeDumper, sort_keys=False, allow_unicode=True,
+                     default_flow_style=False, width=1000)
     return f"---\n{head}---\n\n{body.strip()}\n"
 
 

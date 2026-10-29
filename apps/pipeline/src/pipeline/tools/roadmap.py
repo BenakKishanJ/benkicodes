@@ -11,6 +11,7 @@ step-3 failure leaves public state consistent (tag exists, page not live yet).
 """
 from __future__ import annotations
 
+import re
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -23,10 +24,18 @@ from .publisher import PublishError, _git, _prepare_worktree, render_frontmatter
 from .repo import CourseRepo
 
 
+def _https_base(repo_url: str) -> str:
+    """git@host:owner/repo(.git) and ssh://git@host/owner/repo(.git) → https://host/owner/repo."""
+    m = re.match(r"(?:git@|ssh://git@)([\w.-]+)[:/]([^/]+)/(.+?)(?:\.git)?/?$", repo_url)
+    return f"https://{m[1]}/{m[2]}/{m[3]}" if m else repo_url
+
+
 def github_urls(repo_url: str | None, name: str, start: int, n: int) -> dict:
     """compare/tree/commit URL builders for a part. Without a remote the urls still
-    point at the canonical github location (links go live when the repo is pushed)."""
-    base = repo_url or f"https://github.com/benkicodes/{name}"
+    point at the canonical github location (links go live when the repo is pushed).
+    SSH remotes are normalized to https (site schema requires https GitHub URLs)."""
+    base = _https_base(repo_url) if repo_url else f"https://github.com/benkicodes/{name}"
+    base = re.sub(r"\.git/?$", "", base)
     return {
         "base": base.rstrip("/"),
         "compare": f"{base.rstrip('/')}/compare/part-{start}...part-{n}",
@@ -111,12 +120,21 @@ def merge_tag_push(repo: CourseRepo, n: int, remote_url: str | None) -> dict:
     if not repo.is_clean():
         raise PublishError(f"{branch} has uncommitted changes; commit them first")
     repo.git("checkout", "main")
-    if repo.git("rev-parse", "--verify", "--quiet", f"refs/tags/{tag}", check=False).returncode == 0:
-        raise PublishError(f"tag {tag} already exists — refusing to republish")
-    if repo.git("merge", "--ff-only", branch, check=False).returncode != 0:
+    cp = repo.git("rev-parse", "--verify", tag + "^{commit}", check=False)
+    tagged_commit = cp.stdout.strip() if cp.returncode == 0 else ""
+    if tagged_commit:
+        # idempotent retry: a prior attempt already merged+tagged — only main must match
+        if tagged_commit == repo.git("rev-parse", "main").stdout.strip():
+            head = repo.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+            if head != "main":
+                repo.git("checkout", "main")
+        else:
+            raise PublishError(f"tag {tag} already exists — refusing to republish")
+    elif repo.git("merge", "--ff-only", branch, check=False).returncode != 0:
         repo.git("checkout", branch)  # leave the repo where Ben's work is
         raise PublishError(f"main cannot fast-forward to {branch} (diverged); fix manually")
-    repo.tag(n, f"part-{n}")
+    if not tagged_commit:
+        repo.tag(n, f"part-{n}")
     pushed = False
     detail = ""
     if remote_url:

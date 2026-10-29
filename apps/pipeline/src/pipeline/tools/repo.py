@@ -37,6 +37,49 @@ class RepoError(Exception):
     pass
 
 
+def _skeleton(s: str) -> str:
+    """Line reduced to whitespace-and-quote-free characters — absorbs models that
+    emit code with string quotes stripped (recurring dots-3-note failure mode)."""
+    return re.sub(r"\s+", "", s.replace('"', "").replace("'", ""))
+
+
+def _quote_tolerant_replace(text: str, search: str, replace: str) -> str | None:
+    """Fallback for edit searches the model mangled by stripping quotes.
+
+    Matches the search against the file line-by-line on skeletons (quotes +
+    whitespace removed). Only accepts when exactly one line window matches.
+    For aligned replace lines that are quote-stripped copies of a search line
+    (skeleton equal, bytes differ), the original file line is kept so correct
+    quoting survives; genuinely rewritten lines are used as-is.
+    Returns the full new text, or None if there is no unique match."""
+    file_lines = text.splitlines()
+    search_lines = search.splitlines()
+    if not search_lines:
+        return None
+    sk = [_skeleton(l) for l in search_lines]
+    if any(s == "" for s in sk) or len(set(sk)) < len(sk):
+        return None  # blank lines / repeated skeletons are ambiguous — require exact match
+    norm = [_skeleton(l) for l in file_lines]
+    starts = [i for i in range(len(file_lines) - len(sk) + 1) if norm[i:i + len(sk)] == sk]
+    if len(starts) != 1:
+        return None
+    start = starts[0]
+
+    rep_lines = replace.splitlines()
+    if len(rep_lines) == len(sk):
+        for j, rep in enumerate(rep_lines):
+            orig = file_lines[start + j]
+            if rep != orig and _skeleton(rep) == _skeleton(orig) == sk[j]:
+                rep_lines[j] = orig  # same content, model just stripped quotes — keep ours
+        replacement = "\n".join(rep_lines)
+    else:
+        replacement = replace  # rewritten block: trust the model, tests will verify
+    before = "\n".join(file_lines[:start])
+    after = "\n".join(file_lines[start + len(sk):])
+    out = before + ("\n" if before else "") + replacement + ("\n" if after else "")
+    return out + ("\n" if text.endswith("\n") and not out.endswith("\n") else "")
+
+
 def scrubbed_env() -> dict[str, str]:
     return {k: v for k, v in __import__("os").environ.items() if k in _KEEP_ENV and v is not None}
 
@@ -280,10 +323,14 @@ class CourseRepo:
         for e in edits or []:
             hits = text.count(e["search"])
             if hits == 0:
-                raise RepoError(f"edit: search text not found in {path}: {e['search'][:80]!r}")
-            if hits > 1:
+                fixed = _quote_tolerant_replace(text, e["search"], e["replace"])
+                if fixed is None:
+                    raise RepoError(f"edit: search text not found in {path}: {e['search'][:80]!r}")
+                text = fixed
+            elif hits > 1:
                 raise RepoError(f"edit: search text matches {hits} times in {path} (must match once): {e['search'][:80]!r}")
-            text = text.replace(e["search"], e["replace"], 1)
+            else:
+                text = text.replace(e["search"], e["replace"], 1)
         self.write_file(path, text)
         return text
 
