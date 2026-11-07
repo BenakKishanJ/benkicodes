@@ -24,9 +24,6 @@ outcomes:
 tags: []
 status: in-progress
 planned:
-- slug: reflection-and-refinement
-  title: Reflection and Refinement
-  estimatedMinutes: 120
 - slug: report-and-tests
   title: Report and Tests
   estimatedMinutes: 150
