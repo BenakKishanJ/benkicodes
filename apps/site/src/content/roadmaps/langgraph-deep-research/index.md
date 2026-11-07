@@ -24,9 +24,6 @@ outcomes:
 tags: []
 status: in-progress
 planned:
-- slug: plan-and-fan-out
-  title: Plan and Fan-Out
-  estimatedMinutes: 150
 - slug: reflection-and-refinement
   title: Reflection and Refinement
   estimatedMinutes: 120
