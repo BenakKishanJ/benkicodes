@@ -22,11 +22,8 @@ outcomes:
 - Write a synthesis node that produces a structured markdown report with bibliography.
 - Write config.py that reads OPENROUTER_API_KEY and TAVILY_API_KEY from .env.
 tags: []
-status: in-progress
-planned:
-- slug: report-and-tests
-  title: Report and Tests
-  estimatedMinutes: 150
+status: complete
+planned: []
 project:
   repo: https://github.com/BenakKishanJ/langgraph-deep-research.git
   defaultBranch: main
