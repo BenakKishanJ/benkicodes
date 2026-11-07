@@ -24,9 +24,6 @@ outcomes:
 tags: []
 status: in-progress
 planned:
-- slug: search-tool-and-loop
-  title: Search Tool and Loop
-  estimatedMinutes: 120
 - slug: plan-and-fan-out
   title: Plan and Fan-Out
   estimatedMinutes: 150
