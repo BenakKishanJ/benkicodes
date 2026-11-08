@@ -6,6 +6,7 @@ import PixelIcon from '../components/pixel/PixelIcon.astro';
 import PixelEdge from '../components/pixel/PixelEdge.astro';
 import SectionHeader from '../components/pixel/SectionHeader.astro';
 import { siteConfig } from '../site.config';
+import { personJsonLd, siteUrl } from '../lib/seo';
 
 // Edit these rows. They render like neofetch output.
 const rows: [string, string][] = [
@@ -22,10 +23,12 @@ const links = [
   { icon: 'mail', label: 'email', href: `mailto:${siteConfig.author.email}`, rel: '' },
   { icon: 'terminal', label: 'rss', href: '/rss.xml', rel: '' },
 ];
-const person = {
-  '@context': 'https://schema.org', '@type': 'Person', name: siteConfig.author.name,
-  url: `${siteConfig.url}/about/`, sameAs: [siteConfig.author.github, siteConfig.author.linkedin],
-};
+const person = personJsonLd({
+  name: siteConfig.author.name,
+  github: siteConfig.author.github,
+  linkedin: siteConfig.author.linkedin,
+  aboutUrl: siteUrl('/about/'),
+});
 ---
 <BaseLayout title="About" description={`About ${siteConfig.author.name}: who writes this site, how, and why.`} jsonLd={person} snap="mandatory">
   <section class="sec sec-full sec-first sec-pad-b tone-a grid-bg" data-title="whoami">

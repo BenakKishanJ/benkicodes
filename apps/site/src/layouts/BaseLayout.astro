@@ -5,6 +5,7 @@ import '@fontsource-variable/jetbrains-mono';
 import '../styles/global.css';
 import { siteConfig, indexing } from '../site.config';
 import { themeIds, DEFAULT_THEME } from '../lib/themes';
+import { buildMeta } from '../lib/seo';
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
 import CommandPalette from '../components/layout/CommandPalette.astro';
@@ -23,19 +24,19 @@ interface Props {
   snap?: 'mandatory' | 'proximity' | 'none';
 }
 const {
-  title, description = siteConfig.description, image = '/og-default.png', type = 'website',
+  title, description = siteConfig.description, image, type = 'website',
   publishedTime, modifiedTime, canonical, noindex = false, jsonLd, snap = 'proximity',
 } = Astro.props;
 
-const fullTitle = Astro.url.pathname === '/' ? `${siteConfig.name}: ${siteConfig.tagline}` : `${title} | ${siteConfig.name}`;
-const canonicalUrl = canonical ?? new URL(Astro.url.pathname, siteConfig.url).href;
-const imageUrl = new URL(image, siteConfig.url).href;
-// Staging rule: anything not explicitly indexable gets noindex, plus the
-// per-page noindex prop for draft/dev-only pages.
-const noindexEffective = !indexing.on || noindex;
-const robotsDirectives = noindexEffective
-  ? 'noindex, follow, max-image-preview:large'
-  : 'max-image-preview:large';
+// SE-6 fallback that is always satisfiable: every page gets a generated
+// /og/<path>.png (see src/pages/og/[...route].png.ts); / shares the default.
+const ogPath = Astro.url.pathname === '/' ? '/og-default.png' : `/og${Astro.url.pathname.replace(/\/$/, '')}.png`;
+const meta = buildMeta({
+  title, description, canonical, path: Astro.url.pathname, type,
+  publishedTime, modifiedTime, image: image ?? ogPath, noindex,
+  indexingOn: indexing.on,
+});
+const { fullTitle, canonicalUrl, imageUrl, robots } = meta;
 
 // Runs before first paint so there is no flash of the wrong theme.
 const themeBoot = `(function(){var d=document.documentElement;try{var ids=${JSON.stringify(themeIds)};var t=localStorage.getItem('benki-theme');if(ids.indexOf(t)<0)t='${DEFAULT_THEME}';d.dataset.theme=t;d.dataset.fx=localStorage.getItem('benki-fx')||'on'}catch(e){d.dataset.theme='${DEFAULT_THEME}';d.dataset.fx='on'}d.classList.add('js')})();`;
@@ -56,10 +57,11 @@ const ld = [siteJsonLd, ...(Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] :
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalUrl} />
-    <meta name="robots" content={robotsDirectives} />
+    <meta name="robots" content={robots} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <link rel="alternate" type="application/rss+xml" title={`${siteConfig.name} RSS`} href="/rss.xml" />
+    <link rel="alternate" type="application/rss+xml" title={`${siteConfig.name} roadmaps`} href="/roadmaps/rss.xml" />
 
     <meta property="og:site_name" content={siteConfig.name} />
     <meta property="og:type" content={type} />
