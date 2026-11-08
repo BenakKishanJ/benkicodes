@@ -5,6 +5,7 @@ import PageHero from '../../components/content/PageHero.astro';
 import PostCard from '../../components/content/PostCard.astro';
 import PixelIcon from '../../components/pixel/PixelIcon.astro';
 import { getPosts } from '../../lib/content';
+import { breadcrumbJsonLd, siteUrl } from '../../lib/seo';
 
 export const getStaticPaths = (async ({ paginate }) => {
   const posts = await getPosts();
@@ -16,7 +17,15 @@ const all = await getPosts();
 const tags = [...new Set(all.flatMap((p) => p.data.tags))].sort();
 const pad = (n: number) => String(n).padStart(2, '0');
 ---
-<BaseLayout title={page.currentPage > 1 ? `Blog, page ${page.currentPage}` : 'Blog'} description="Guides, tooling notes and news for full-stack and AI engineers. Every post lists its sources.">
+<BaseLayout
+  title={page.currentPage > 1 ? `Blog, page ${page.currentPage}` : 'Blog'}
+  description="Guides, tooling notes and news for full-stack and AI engineers. Every post lists sources, AI-assistance level and a human review date."
+  jsonLd={breadcrumbJsonLd([
+    { name: 'Home', item: siteUrl('/') },
+    ...(page.currentPage > 1 ? [{ name: 'Blog', item: siteUrl('/blog/') }] : []),
+    ...(page.currentPage > 1 ? [{ name: `Page ${page.currentPage}` }] : [{ name: 'Blog' }]),
+  ])}
+>
   <PageHero title="Blog" word="BLOG" lead="Guides, tooling notes and news. Every post lists its sources and the date a person last reviewed it.">
     <p class="prompt meta mb-6">ls tags/ <span class="text-fg">({all.length} posts)</span></p>
     <p class="flex flex-wrap gap-3">{tags.map((t) => <a class="tag" href={`/blog/tags/${t}/`}>{t}</a>)}</p>

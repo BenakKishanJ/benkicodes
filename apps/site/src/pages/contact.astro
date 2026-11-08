@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import PixelEdge from '../components/pixel/PixelEdge.astro';
 import PixelIcon from '../components/pixel/PixelIcon.astro';
 import { siteConfig } from '../site.config';
+import { personJsonLd, siteUrl } from '../lib/seo';
 
 // NOTE: placeholder contacts — replace in site.config.ts before launch.
 const channels = [
@@ -11,10 +12,12 @@ const channels = [
   { icon: 'user', label: 'linkedin', value: 'connect there', href: siteConfig.author.linkedin, hint: 'recruiters and professional mail — say you found me on the site' },
 ];
 
-const person = {
-  '@context': 'https://schema.org', '@type': 'Person', name: siteConfig.author.name,
-  url: `${siteConfig.url}/contact/`, sameAs: [siteConfig.author.github, siteConfig.author.linkedin],
-};
+const person = personJsonLd({
+  name: siteConfig.author.name,
+  github: siteConfig.author.github,
+  linkedin: siteConfig.author.linkedin,
+  aboutUrl: siteUrl('/contact/'),
+});
 ---
 <BaseLayout title="Contact" description="How to reach the author: email for corrections and collaboration, GitHub for code, LinkedIn for professional mail." jsonLd={person}>
   <section class="sec sec-first sec-pad-b tone-a grid-bg" data-title="man page">

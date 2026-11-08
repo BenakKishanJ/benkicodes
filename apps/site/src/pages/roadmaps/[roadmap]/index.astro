@@ -9,9 +9,10 @@ import SectionHeader from '../../../components/pixel/SectionHeader.astro';
 import RoadmapProgress from '../../../components/learning/RoadmapProgress';
 import ProjectPanel from '../../../components/roadmap/ProjectPanel.astro';
 import InspiredBy from '../../../components/roadmap/InspiredBy.astro';
-import { getRoadmaps, getModules, roadmapSlug, moduleSlug } from '../../../lib/content';
+import { getRoadmaps, getModules, getPosts, roadmapSlug, moduleSlug } from '../../../lib/content';
 import { formatDate, isoDate } from '../../../lib/utils';
-import { siteConfig } from '../../../site.config';
+import { articleJsonLd, breadcrumbJsonLd, siteUrl } from '../../../lib/seo';
+import RelatedReading from '../../../components/content/RelatedReading.astro';
 
 export const getStaticPaths = (async () => {
   const roadmaps = await getRoadmaps();
@@ -24,24 +25,24 @@ const { data } = entry;
 const { Content } = await render(entry);
 const modules = await getModules(slug);
 
+// SE-9: hub links to posts that reference parts of this course.
+const relatedPosts = (await getPosts())
+  .filter((p) => p.data.relatedPart?.course === slug)
+  .slice(0, 2);
+
 const jsonLd = [
-  {
-    // Article, not Course: structured-data courses don't earn rich results yet (02-prd §11.1)
-    '@context': 'https://schema.org', '@type': 'Article',
-    headline: data.title, description: data.description,
-    author: { '@type': 'Person', name: siteConfig.author.name },
-    publisher: { '@type': 'Person', name: siteConfig.author.name },
-    dateModified: data.lastReviewed.toISOString(),
-    mainEntityOfPage: `${siteConfig.url}/roadmaps/${slug}/`,
-  },
-  {
-    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
-      { '@type': 'ListItem', position: 2, name: 'Roadmaps', item: `${siteConfig.url}/roadmaps/` },
-      { '@type': 'ListItem', position: 3, name: data.title, item: `${siteConfig.url}/roadmaps/${slug}/` },
-    ],
-  },
+  // Article, not Course: structured-data courses don't earn rich results yet (02-prd §11.1)
+  articleJsonLd({
+    headline: `${data.title} roadmap`,
+    description: data.description,
+    url: siteUrl(`/roadmaps/${slug}/`),
+    dateModified: data.lastReviewed,
+  }),
+  breadcrumbJsonLd([
+    { name: 'Home', item: siteUrl('/') },
+    { name: 'Roadmaps', item: siteUrl('/roadmaps/') },
+    { name: data.title },
+  ]),
 ];
 ---
 <BaseLayout title={`${data.title} roadmap`} description={data.description} jsonLd={jsonLd} snap="mandatory">
@@ -124,4 +125,13 @@ const jsonLd = [
       </div>
     </div>
   </section>
+
+  {relatedPosts.length > 0 && (
+    <section class="sec sec-pad-b tone-a grid-bg" data-title="related">
+      <div class="wrap">
+        <SectionHeader title="From the blog" meta="posts that follow this build" />
+        <div class="mt-16"><RelatedReading posts={relatedPosts} /></div>
+      </div>
+    </section>
+  )}
 </BaseLayout>

@@ -11,8 +11,10 @@ import PixelIcon from '../../components/pixel/PixelIcon.astro';
 import PostCard from '../../components/content/PostCard.astro';
 import AdSlot from '../../components/ads/AdSlot.astro';
 import { siteConfig } from '../../site.config';
-import { getPosts } from '../../lib/content';
+import { getPosts, getModules, getRoadmaps, roadmapSlug, moduleSlug } from '../../lib/content';
 import { formatDate, isoDate, readingTime } from '../../lib/utils';
+import { articleJsonLd, breadcrumbJsonLd, siteUrl } from '../../lib/seo';
+import CourseCallout from '../../components/content/CourseCallout.astro';
 
 export const getStaticPaths = (async () => {
   const posts = await getPosts();
@@ -28,25 +30,44 @@ const related = all
   .filter((p) => p.id !== post.id && p.data.tags.some((t) => data.tags.includes(t)))
   .slice(0, 2);
 
-const url = new URL(`/blog/${post.id}/`, siteConfig.url).href;
+const url = siteUrl(`/blog/${post.id}/`);
+
+// SE-9 / BL-4: resolve the build-along course part this post supports.
+const resolveCallout = async () => {
+  const rp = data.relatedPart;
+  if (!rp) return null;
+  const rs = rp.course;
+  const [modules, roadmaps] = await Promise.all([getModules(), getRoadmaps()]);
+  const mod = modules.find((m) => roadmapSlug(m.id) === rs && moduleSlug(m.id) === rp.part);
+  const courseEntry = roadmaps.find((r) => roadmapSlug(r.id) === rs);
+  if (!mod && !courseEntry) return null;
+  return {
+    courseSlug: rs,
+    // Mod titles are part-specific; the course title is the fallback.
+    courseTitle: courseEntry?.data.title ?? rs,
+    partSlug: mod ? moduleSlug(mod.id) : undefined,
+    partTitle: mod?.data.title,
+  };
+};
+const callout = await resolveCallout();
+
 const jsonLd = [
-  {
-    '@context': 'https://schema.org', '@type': 'BlogPosting',
-    headline: data.title, description: data.description, mainEntityOfPage: url,
-    datePublished: data.pubDate.toISOString(),
-    dateModified: (data.updatedDate ?? data.lastReviewed).toISOString(),
-    author: { '@type': 'Person', name: siteConfig.author.name, url: `${siteConfig.url}/about/` },
+  articleJsonLd({
+    type: 'BlogPosting',
+    headline: data.title,
+    description: data.description,
+    url,
+    datePublished: data.pubDate,
+    dateModified: data.updatedDate ?? data.lastReviewed,
+    author: { name: siteConfig.author.name, url: siteUrl('/about/') },
     image: data.cover ? new URL(data.cover.src, siteConfig.url).href : undefined,
-    keywords: data.tags.join(', '),
-  },
-  {
-    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
-      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${siteConfig.url}/blog/` },
-      { '@type': 'ListItem', position: 3, name: data.title, item: url },
-    ],
-  },
+    keywords: data.tags,
+  }),
+  breadcrumbJsonLd([
+    { name: 'Home', item: siteUrl('/') },
+    { name: 'Blog', item: siteUrl('/blog/') },
+    { name: data.title },
+  ]),
 ];
 ---
 <BaseLayout title={data.title} description={data.description} type="article" image={data.cover?.src}
@@ -81,6 +102,7 @@ const jsonLd = [
       <aside class="lg:col-span-3 min-w-0"><div class="lg:sticky lg:top-28 min-w-0"><TOC headings={headings} /></div></aside>
       <article class="lg:col-span-8 lg:col-start-5 min-w-0">
         <div class="prose"><Content /></div>
+        {callout && <CourseCallout courseSlug={callout.courseSlug} courseTitle={callout.courseTitle} partSlug={callout.partSlug} partTitle={callout.partTitle} />}
         <AdSlot slot="in-article" />
         <div class="mt-20 space-y-8">
           <SourcesList sources={data.sources} />
