@@ -1,0 +1,15 @@
+---
+// SE-9: "part → related posts" internal linking. Renders the blog posts
+// whose relatedPart points at this course.
+import type { CollectionEntry } from 'astro:content';
+import PostCard from './PostCard.astro';
+
+interface Props {
+  posts: CollectionEntry<'blog'>[];
+}
+const { posts } = Astro.props;
+---
+
+<section class="grid gap-10 md:grid-cols-2" aria-label="Related articles">
+  {posts.map((post) => <PostCard post={post} />)}
+</section>

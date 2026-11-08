@@ -3,12 +3,17 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import PageHero from '../../components/content/PageHero.astro';
 import RoadmapCard from '../../components/content/RoadmapCard.astro';
 import { getRoadmaps, getModules, roadmapSlug } from '../../lib/content';
+import { breadcrumbJsonLd, siteUrl } from '../../lib/seo';
 
 const roadmaps = await getRoadmaps();
 const modules = await getModules();
 const count = (slug: string) => modules.filter((m) => roadmapSlug(m.id) === slug).length;
 ---
-<BaseLayout title="Roadmaps" description="Structured learning paths for programming languages, frameworks and AI tooling. Every module ends with a quiz." snap="mandatory">
+<BaseLayout title="Roadmaps" description="Structured learning paths for programming languages, frameworks and AI tooling. Every module ends with a quiz." snap="mandatory"
+  jsonLd={breadcrumbJsonLd([
+    { name: 'Home', item: siteUrl('/') },
+    { name: 'Roadmaps' },
+  ])}>
   <PageHero title="Roadmaps" word="PATHS" full lead="Step-by-step paths with a quiz at the end of every module. Progress is saved in your browser. No account needed.">
     <dl class="spec max-w-md" data-reveal>
       <div><dt>roadmaps</dt><dd>{roadmaps.length}</dd></div>

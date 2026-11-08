@@ -1,0 +1,27 @@
+---
+// SE-9 / BL-4: "post → part" callout. Links a blog post to the course
+// (and specific part) it supports, so articles feed the hands-on path.
+import PixelIcon from '../pixel/PixelIcon.astro';
+
+interface Props {
+  courseSlug: string;
+  courseTitle: string;
+  /** Module slug inside the course; renders the part link when present. */
+  partSlug?: string;
+  partTitle?: string;
+}
+const { courseSlug, courseTitle, partSlug, partTitle } = Astro.props;
+const partHref = partSlug ? `/roadmaps/${courseSlug}/${partSlug}/` : undefined;
+---
+
+<aside class="px p-7 my-14" style="--sh:var(--accent);--o:10px" aria-label="Related build-along course">
+  <p class="px-font mb-4 text-[10px] text-muted">related roadmap</p>
+  <p class="t-3">
+    Read it, then build it — {courseTitle}:
+    {partHref ? (
+      <a class="underline decoration-dashed underline-offset-4 text-accent" href={partHref}>{partTitle} <PixelIcon name="arrow-right" size={2} /></a>
+    ) : (
+      <a class="underline decoration-dashed underline-offset-4 text-accent" href={`/roadmaps/${courseSlug}/`}>{courseTitle} <PixelIcon name="arrow-right" size={2} /></a>
+    )}
+  </p>
+</aside>
